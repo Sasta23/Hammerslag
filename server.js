@@ -15,10 +15,10 @@ const PORT = Number(process.env.PORT) || 3000;
 const PUB = path.join(__dirname, 'public');
 
 const ROLES = {
-  judge:      { title: 'Dommer',    color: '#d4583f', icon: 'gavel',  goal: 'Du leder retssagen og afsiger dommen.' },
-  prosecutor: { title: 'Anklager',  color: '#8a7cf5', icon: 'scale',  goal: 'Få dommeren til at sige SKYLDIG.' },
-  defense:    { title: 'Forsvarer', color: '#3fb39a', icon: 'shield', goal: 'Skab rimelig tvivl, så dommen bliver IKKE SKYLDIG.' },
-  witness:    { title: 'Vidne',     color: '#4c9be8', icon: 'eye',    goal: 'Tal sandt – men gem din pinlige hemmelighed så længe du kan.' }
+  judge:      { title: 'Dommer',    color: '#7a2b2b', icon: 'gavel',  goal: 'Du leder retssagen og afsiger dommen.' },
+  prosecutor: { title: 'Anklager',  color: '#3f5446', icon: 'scale',  goal: 'Få dommeren til at sige SKYLDIG.' },
+  defense:    { title: 'Forsvarer', color: '#6e846f', icon: 'shield', goal: 'Skab rimelig tvivl, så dommen bliver IKKE SKYLDIG.' },
+  witness:    { title: 'Vidne',     color: '#34405e', icon: 'eye',    goal: 'Tal sandt – men gem din pinlige hemmelighed så længe du kan.' }
 };
 const ORDER = ['judge', 'prosecutor', 'defense', 'witness'];
 

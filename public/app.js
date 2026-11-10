@@ -10,7 +10,8 @@
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const store = { get: k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
   const params = new URLSearchParams(location.search);
-  const ROLE = { judge: { c: '#d4583f', ink: '#fff', i: 'gavel', t: 'Dommer' }, prosecutor: { c: '#8a7cf5', ink: '#10151f', i: 'scale', t: 'Anklager' }, defense: { c: '#3fb39a', ink: '#10151f', i: 'shield', t: 'Forsvarer' }, witness: { c: '#4c9be8', ink: '#10151f', i: 'eye', t: 'Vidne' } };
+  // Rollefarver fra styletilen: bordeaux, mørkegrøn, salviegrøn, polstringsblå
+  const ROLE = { judge: { c: '#7a2b2b', ink: '#fff', i: 'gavel', t: 'Dommer' }, prosecutor: { c: '#3f5446', ink: '#fff', i: 'scale', t: 'Anklager' }, defense: { c: '#6e846f', ink: '#fff', i: 'shield', t: 'Forsvarer' }, witness: { c: '#34405e', ink: '#fff', i: 'eye', t: 'Vidne' } };
 
   let V = null, auth = null, es = null, offset = 0, last = { played: 0, obj: 0, floor: undefined }, ui = { screen: 'home', err: null, sheet: null, secret: false, html: '', foot: '' };
 
@@ -37,7 +38,7 @@
   /* ---------- hjælpere ---------- */
   const keys = (list, cls = '') => list && list.length ? `<div class="keys ${cls}">${list.map(k => `<span class="k">${esc(k)}</span>`).join('')}</div>` : '';
   const badge = (role, size = '') => `<div class="badge ${size}" style="background:${ROLE[role].c}">${ICON(ROLE[role].i)}</div>`;
-  const setRole = role => { document.documentElement.style.setProperty('--role', role ? ROLE[role].c : '#d6aa5a'); document.documentElement.style.setProperty('--role-ink', role ? ROLE[role].ink : '#10151f'); };
+  const setRole = role => { document.documentElement.style.setProperty('--role', role ? ROLE[role].c : '#3f5446'); document.documentElement.style.setProperty('--role-ink', role ? ROLE[role].ink : '#fff'); };
   function timerLeft() {
     const t = V && V.timer; if (!t) return null;
     return t.running ? Math.max(0, Math.ceil((t.endsAt - (Date.now() + offset)) / 1000)) : t.left;
@@ -71,6 +72,7 @@
 
   function homeHtml() {
     return `<div class="brand"><div class="mark">${ICON('gavel')}</div><h1>Hammerslag</h1><p>Et retsdrama for fire. Dommeren styrer – de andre får stikord og spiller deres rolle.</p></div>
+      <div class="ornament">${ICON('rosette')}</div>
       <div class="list">
         ${['judge', 'prosecutor', 'defense', 'witness'].map(r => `<div class="seat">${badge(r)}<div><b>${ROLE[r].t}</b><span>${{ judge: 'Styrer retssagen og afsiger dommen', prosecutor: 'Skal bevise, at den tiltalte er skyldig', defense: 'Skal skabe rimelig tvivl', witness: 'Så noget – og gemmer på en hemmelighed' }[r]}</span></div><div></div></div>`).join('')}
       </div>
@@ -167,7 +169,7 @@
     const s = V.screen, n = V.beats.length;
     let h = `<header class="top"><div class="badge">${ICON('gavel')}</div><div><b>Dommer · trin ${V.beat + 1} af ${n}</b><span>${esc(V.case.title)} · kode ${esc(V.code)}</span></div><button class="btn sm" data-a="sheet" data-s="roles">Roller</button></header>
       <nav class="steps" aria-label="Retssagens trin">${V.beats.map((b, i) => `<button class="${i < V.beat ? 'done' : i === V.beat ? 'now' : ''}" data-a="beat" data-i="${i}"><i>${i < V.beat ? '✓' : i + 1}</i>${esc(b)}</button>`).join('')}</nav>`;
-    if (V.objection && V.objection.status === 'pending') h += `<div class="alert enter"><span class="label" style="color:#ffe1dd">Indsigelse fra ${esc(V.objection.byTitle.toLowerCase())}en</span><h3>»${esc(V.objection.type)}«</h3>
+    if (V.objection && V.objection.status === 'pending') h += `<div class="alert enter"><span class="label" style="color:#f3e1de">Indsigelse fra ${esc(V.objection.byTitle.toLowerCase())}en</span><h3>»${esc(V.objection.type)}«</h3>
       <div class="row"><button class="btn ok" data-a="rule" data-ok="1">Taget til følge</button><button class="btn" data-a="rule" data-ok="0">Afvist</button></div></div>`;
     h += `<div><span class="label">Nu</span><h1 style="font-size:28px;margin-top:4px">${esc(s.now)}</h1><p class="muted" style="margin-top:6px">${esc(s.hint)}</p></div>`;
     if (s.script && !(V.screen.extras || []).some(e => e.type === 'verdict' && V.verdict)) h += `<div class="script"><span class="label">${ICON('speech')}Læs højt</span><p>${esc(s.script)}</p></div>`;
