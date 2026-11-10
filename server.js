@@ -31,22 +31,48 @@ const BEATS = [
   { id: 'vidne', label: 'Vidnet fortæller', floor: 'witness', secs: 60 },
   { id: 'fh_p', label: 'Anklageren afhører', floor: 'prosecutor', secs: 90 },
   { id: 'fh_d', label: 'Forsvareren krydsforhører', floor: 'defense', secs: 90 },
-  { id: 'bev', label: 'Beviser', floor: 'prosecutor', secs: 120 },
-  { id: 'twist', label: 'Ny afsløring', floor: 'judge', secs: 90 },
+  { id: 'bev_p', label: 'Anklagerens beviser', floor: 'prosecutor', secs: 90 },
+  { id: 'bev_d', label: 'Forsvarerens beviser', floor: 'defense', secs: 90 },
+  { id: 'twist', label: 'Nyt bevis', floor: 'judge', secs: 90 },
   { id: 'sid_p', label: 'Anklagerens sidste ord', floor: 'prosecutor', secs: 30 },
   { id: 'sid_d', label: 'Forsvarerens sidste ord', floor: 'defense', secs: 30 },
   { id: 'dom', label: 'Dommen', floor: 'judge' }
 ];
-const OBJECTIONS = ['Ledende spørgsmål!', 'Det er bare rygter!', 'Vidnet gætter!', 'Det er irrelevant!'];
+const OBJECTIONS = [
+  { t: 'Ledende spørgsmål!', d: 'Spørgsmålet indeholder selv svaret' },
+  { t: 'Vidnet gætter!', d: 'Vidnet ved det ikke – hun gætter' },
+  { t: 'Det er bare rygter!', d: 'Vidnet har kun hørt det fra andre' },
+  { t: 'Beviset viser ikke det!', d: 'Beviset beviser ikke det, de påstår' },
+  { t: 'Det er irrelevant!', d: 'Det har intet med sagen at gøre' },
+  { t: 'De presser vidnet!', d: 'Spørgsmålene er urimelige over for vidnet' }
+];
+const MAX_EVIDENCE = 2;
+const BEV = { bev_p: 'prosecutor', bev_d: 'defense' };
 // Hvem må gøre indsigelse? Vidnet er anklagerens vidne – så forsvareren må
 // gøre indsigelse, når anklageren eller vidnet taler, og anklageren kun, når
-// forsvareren taler. Højst én indsigelse pr. advokat pr. trin.
-const OBJ_BEATS = ['aab_p', 'aab_d', 'vidne', 'fh_p', 'fh_d', 'bev', 'twist'];
-function objLeft(r, role) {
-  if (r.phase !== 'game' || !OBJ_BEATS.includes(BEATS[r.beat].id)) return 0;
-  const against = role === 'defense' ? ['prosecutor', 'witness'] : role === 'prosecutor' ? ['defense'] : [];
-  if (!against.includes(r.floor)) return 0;
-  return r.objUsed[role] ? 0 : 1;
+// forsvareren taler. Én indsigelse pr. advokat pr. trin – i bevisfasen én pr. bevis.
+const OBJ_BEATS = ['aab_p', 'aab_d', 'vidne', 'fh_p', 'fh_d', 'bev_p', 'bev_d', 'twist'];
+const lastEv = r => r.played[r.played.length - 1];
+function objKey(r, role) {
+  if (!BEV[BEATS[r.beat].id]) return role;
+  const L = lastEv(r); return L ? `${role}:${L.role}${L.i}` : null;
+}
+function allowedObj(r, role) {
+  const id = BEATS[r.beat].id, f = r.floor;
+  if (r.phase !== 'game' || !OBJ_BEATS.includes(id) || !(role === 'prosecutor' || role === 'defense')) return [];
+  if (!(role === 'defense' ? ['prosecutor', 'witness'] : ['defense']).includes(f)) return [];
+  const key = objKey(r, role); if (!key || r.objUsed[key]) return [];
+  if (BEV[id]) { const L = lastEv(r); return L && L.role === BEV[id] && L.role !== role ? [3, 4] : []; }
+  const list = [4];
+  const witnessTalks = ['vidne', 'fh_p', 'fh_d'].includes(id) || f === 'witness';
+  if (role === 'defense' && witnessTalks) list.unshift(1, 2);
+  if (role === 'defense' && id === 'fh_p') list.unshift(0);
+  if (role === 'prosecutor' && id === 'fh_d') list.unshift(0, 5);
+  return list;
+}
+const evOf = (r, x) => (x.role === 'prosecutor' ? C(r).prosecution : C(r).defense).evidence[x.i];
+function presented(r, side) {
+  return r.played.filter(x => x.role === side).map((x, n) => ({ n: n + 1, k: (side === 'prosecutor' ? 'p' : 'd') + x.i, ...evOf(r, x), objection: r.evObj[x.role + x.i] || null }));
 }
 
 /* ---------- rum ---------- */
@@ -68,7 +94,7 @@ function base(req) {
 }
 function newRoom(caseIdx, joinBase) {
   const r = { code: code(), caseIdx, variant: crypto.randomInt(CASES[caseIdx].twists.length), joinBase, players: [], phase: 'lobby', beat: 0, floor: 'judge',
-    timer: null, objection: null, played: [], theory: {}, persona: null, objUsed: {}, verdict: null, revealed: false, conns: new Set(), fx: 0, touched: Date.now() };
+    timer: null, objection: null, played: [], theory: {}, persona: null, objUsed: {}, evObj: {}, verdict: null, revealed: false, conns: new Set(), fx: 0, touched: Date.now() };
   rooms.set(r.code, r); return r;
 }
 const C = r => CASES[r.caseIdx];
@@ -98,8 +124,14 @@ function judgeScreen(r) {
       s.script = 'Anklageren må stille vidnet spørgsmål.'; ex.push({ type: 'questions', items: c.judgeQuestions }, { type: 'rules' }); break;
     case 'fh_d': s.now = 'Forsvareren krydsforhører'; s.hint = 'Hold øje med indsigelser. Du må også selv spørge.';
       s.script = 'Forsvareren må nu krydsforhøre vidnet.'; ex.push({ type: 'questions', items: c.judgeQuestions }, { type: 'rules' }); break;
-    case 'bev': s.now = 'Beviserne'; s.hint = 'Giv ordet til forsvareren, når anklageren er færdig. Notér, hvad der overbeviser dig.';
-      s.script = 'Anklageren må fremlægge sine beviser. Derefter forsvareren.'; ex.push({ type: 'notebook' }); break;
+    case 'bev_p': case 'bev_d': {
+      const P = b.id === 'bev_p', side = BEV[b.id];
+      s.now = P ? 'Anklagerens beviser' : 'Forsvarerens beviser';
+      s.hint = `${P ? 'Anklageren' : 'Forsvareren'} fremlægger op til ${MAX_EVIDENCE} beviser. ${P ? 'Forsvareren' : 'Anklageren'} kan gøre indsigelse mod hvert bevis. Vurdér hvert bevis.`;
+      s.script = [`${P ? 'Anklageren' : 'Forsvareren'} må nu fremlægge sine beviser.`, `Højst ${MAX_EVIDENCE} beviser.`];
+      s.presented = { side, items: presented(r, side), left: (P ? c.prosecution : c.defense).evidence.filter((e, i) => !r.played.some(x => x.role === side && x.i === i)).map(e => e.title) };
+      break;
+    }
     case 'twist': s.now = 'Nyt bevis'; s.hint = 'Læs det roligt højt. Giv så ordet til vidnet – og bagefter advokaterne.';
       s.script = ['Ro i retten! Der er kommet nyt i sagen.', `${T(r).reveal.title}: ${T(r).reveal.text}`, `${w.name}, kan De fortælle retten mere om det?`];
       ex.push({ type: 'twist', ...T(r).reveal }); break;
@@ -168,15 +200,21 @@ function playerScreen(r, role) {
       } else listen('Lyt efter svarene', asker === 'prosecutor' ? ['Hvad er usikkert?', 'Noter svar, du kan bruge', 'Ledende spørgsmål?'] : ['Ledende spørgsmål?', 'Presser de vidnet?', 'Er det relevant?']);
       break;
     }
-    case 'bev':
-      if (lawyer) {
-        const played = i => r.played.some(x => x.role === role && x.i === i);
-        s.mode = mine ? 'speak' : 'listen';
-        s.cue = mine ? { icon: 'folder', title: 'Fremlæg dine beviser', sub: 'Tryk »Fremlæg«. Beviset vises for alle. Forklar så med dine egne ord, hvad det betyder.', starter: 'Ærede dommer, se her …' }
-                     : { icon: 'folder', title: 'Vent på din tur', sub: 'Lyt til modpartens beviser. Find en anden forklaring!', starter: 'Det beviser intet, fordi …' };
-        s.evidence = side.evidence.map((e, i) => ({ i, ...e, played: played(i), canPlay: mine }));
-      } else { listen('Lyt til beviserne', ['Lyt roligt', 'Dommeren kan spørge dig'], 'ear'); }
+    case 'bev_p': case 'bev_d': {
+      const presenter = BEV[b.id], items = presented(r, presenter);
+      if (role === presenter) {
+        const count = items.length, played = i => r.played.some(x => x.role === role && x.i === i);
+        s.mode = mine ? 'speak' : 'ready';
+        s.cue = { icon: 'folder', title: 'Fremlæg dine beviser', sub: `Vælg højst ${MAX_EVIDENCE}. Tryk »Fremlæg« – så ser alle beviset. Forklar så, hvad det viser.`, starter: 'Ærede dommer, beviset viser …', tip: 'Vent på dommeren, hvis der kommer en indsigelse.' };
+        s.evidence = side.evidence.map((e, i) => ({ i, ...e, played: played(i), canPlay: mine && (played(i) || count < MAX_EVIDENCE) }));
+        s.evCount = { n: count, max: MAX_EVIDENCE };
+      } else if (lawyer) {
+        listen(`${ROLES[presenter].title}en fremlægger`, ['Hvad viser det IKKE?', 'Anden forklaring?'], 'folder');
+        s.cue.sub = 'Du kan gøre én indsigelse mod hvert bevis.'; s.cue.starter = 'Det beviser intet, fordi …';
+        s.shown = items;
+      } else { listen('Lyt til beviserne', ['Lyt roligt', 'Dommeren kan spørge dig'], 'ear'); s.shown = items; }
       break;
+    }
     case 'twist':
       s.twist = T(r).reveal;
       if (role === 'witness') {
@@ -231,8 +269,14 @@ function view(r, p) {
     lastPlayed: r.played.length ? (() => { const x = r.played[r.played.length - 1]; const e = (x.role === 'prosecutor' ? c.prosecution : c.defense).evidence[x.i]; return { n: r.played.length, by: nameOf(r, x.role), byTitle: ROLES[x.role].title, ...e }; })() : null,
     verdict: r.verdict, revealed: r.revealed
   });
-  if (p.role === 'judge') { v.beats = BEATS.map(b => b.label); v.objections = OBJECTIONS; v.screen = judgeScreen(r); }
-  else { v.screen = playerScreen(r, p.role); v.objections = OBJECTIONS; v.screen.objection = objLeft(r, p.role) > 0; v.screen.objUsed = !!r.objUsed[p.role] && OBJ_BEATS.includes(BEATS[r.beat].id); }
+  if (p.role === 'judge') { v.beats = BEATS.map(b => b.label); v.screen = judgeScreen(r); }
+  else {
+    v.screen = playerScreen(r, p.role);
+    const ok = allowedObj(r, p.role), key = objKey(r, p.role);
+    v.objections = ok.map(i => ({ i, ...OBJECTIONS[i] }));
+    v.screen.objection = ok.length > 0;
+    v.screen.objUsed = !ok.length && !!key && !!r.objUsed[key] && (BEV[BEATS[r.beat].id] ? 'bevis' : 'tur');
+  }
   return v;
 }
 
@@ -262,21 +306,29 @@ function act(r, p, type, d = {}) {
     }
     case 'theory': need(game && (p.role === 'prosecutor' || p.role === 'defense') && [0, 1].includes(d.i)); r.theory[p.role] = d.i; break;
     case 'persona': need(game && p.role === 'witness' && Number.isInteger(d.i) && C(r).witness.personas[d.i]); r.persona = d.i; break;
-    case 'object':
-      need(game && objLeft(r, p.role) > 0 && OBJECTIONS[d.t] && !(r.objection && r.objection.status === 'pending'));
-      r.objUsed[p.role] = true;
-      r.objection = { by: p.role, type: OBJECTIONS[d.t], status: 'pending', id: ++r.fx }; break;
-    case 'rule': need(judge && r.objection && r.objection.status === 'pending'); r.objection.status = d.ok ? 'accepted' : 'rejected'; r.objection.id = ++r.fx; break;
+    case 'object': {
+      need(game && allowedObj(r, p.role).includes(d.t) && !(r.objection && r.objection.status === 'pending'));
+      r.objUsed[objKey(r, p.role)] = true;
+      const L = BEV[BEATS[r.beat].id] && lastEv(r);
+      r.objection = { by: p.role, type: OBJECTIONS[d.t].t, status: 'pending', id: ++r.fx, ev: L ? L.role + L.i : null, about: L ? evOf(r, L).title : null };
+      if (L) r.evObj[r.objection.ev] = { type: r.objection.type, status: 'pending' };
+      break;
+    }
+    case 'rule':
+      need(judge && r.objection && r.objection.status === 'pending'); r.objection.status = d.ok ? 'accepted' : 'rejected'; r.objection.id = ++r.fx;
+      if (r.objection.ev) r.evObj[r.objection.ev] = { type: r.objection.type, status: r.objection.status };
+      break;
     case 'play': {
-      need(game && BEATS[r.beat].id === 'bev' && r.floor === p.role && (p.role === 'prosecutor' || p.role === 'defense'));
+      need(game && BEV[BEATS[r.beat].id] === p.role && r.floor === p.role && !(r.objection && r.objection.status === 'pending'));
       const ev = (p.role === 'prosecutor' ? C(r).prosecution : C(r).defense).evidence; need(ev[d.i]);
+      if (!r.played.some(x => x.role === p.role && x.i === d.i) && r.played.filter(x => x.role === p.role).length >= MAX_EVIDENCE) throw new Error(`Du kan højst fremlægge ${MAX_EVIDENCE} beviser.`);
       if (!r.played.some(x => x.role === p.role && x.i === d.i)) r.played.push({ role: p.role, i: d.i });
       else { r.played = r.played.filter(x => !(x.role === p.role && x.i === d.i)); r.played.push({ role: p.role, i: d.i }); }
       r.fx++; break;
     }
     case 'verdict': need(judge && BEATS[r.beat].id === 'dom' && ['guilty', 'notGuilty', null].includes(d.v)); r.verdict = d.v; if (!d.v) r.revealed = false; break;
     case 'reveal': need(judge && r.verdict); r.revealed = true; break;
-    case 'newcase': need(judge); Object.assign(r, { phase: 'lobby', beat: 0, caseIdx: (r.caseIdx + 1) % CASES.length, variant: crypto.randomInt(CASES[(r.caseIdx + 1) % CASES.length].twists.length), played: [], theory: {}, persona: null, objUsed: {}, verdict: null, revealed: false, objection: null, timer: null }); break;
+    case 'newcase': need(judge); Object.assign(r, { phase: 'lobby', beat: 0, caseIdx: (r.caseIdx + 1) % CASES.length, variant: crypto.randomInt(CASES[(r.caseIdx + 1) % CASES.length].twists.length), played: [], theory: {}, persona: null, objUsed: {}, evObj: {}, verdict: null, revealed: false, objection: null, timer: null }); break;
     default: throw new Error('Ukendt handling');
   }
 }

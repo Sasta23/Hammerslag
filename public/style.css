@@ -135,7 +135,7 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .k { padding: 7px 12px; border-radius: 4px; background: var(--bg); border: 1px solid var(--taupe); font-weight: 600; font-size: 17px; color: var(--text); }
 .cue .keys .k { background: #fff; }
 .item .keys .k, .opt .keys .k, .card .keys .k, .flash .keys .k { font-size: 14px; padding: 4px 9px; }
-.starter { border-left: 3px solid var(--role); padding: 6px 0 6px 12px; font-family: var(--font-display); font-style: italic; font-size: 20px; line-height: 1.3; }
+.starter { background: var(--surface-2); border-left: 4px solid var(--role); border-radius: 4px; padding: 12px 14px; font-family: var(--font-body); font-weight: 600; font-size: 22px; line-height: 1.3; color: var(--text); }
 .starter small { display: block; font-family: var(--font-body); font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
 .tip { font-size: 14px; color: var(--muted); display: flex; gap: 8px; align-items: flex-start; }
 .tip .i { width: 18px; height: 18px; margin-top: 1px; color: var(--sage); }
@@ -238,3 +238,17 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 @keyframes drop { from { transform: translate(-50%, -20px); opacity: 0; } }
 .enter { animation: up .25s ease-out; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* bevisfasen */
+.presented { display: flex; flex-direction: column; gap: 10px; }
+.presented > .label { display: flex; align-items: center; gap: 6px; }
+.presented > .label .i { width: 16px; height: 16px; }
+.evcard { background: var(--surface); border: 2px solid var(--text); outline: 1px solid var(--text); outline-offset: -7px; border-radius: 4px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.evcard .label { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.evhead { display: flex; gap: 12px; align-items: center; }
+.evhead .ic { width: 44px; height: 44px; border-radius: 50%; background: var(--green); color: #f4efe4; display: grid; place-items: center; flex: none; }
+.evhead h3 { font-family: var(--font-display); font-size: 24px; line-height: 1.2; }
+.tag.pending { background: #f3e1de; color: var(--wine); }
+.tag.accepted { background: var(--wine); color: #fff; }
+.tag.rejected { background: var(--surface-2); color: var(--muted); }
+.muted.small { font-size: 14px; }

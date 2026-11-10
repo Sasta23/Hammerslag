@@ -149,10 +149,11 @@
     if (s.saw) h += `<span class="label">Det fortæller du</span><div class="card">${keys(s.saw)}</div>`;
     if (s.topics) h += `<span class="label">Spørg ind til</span><div class="list">${s.topics.map(t => `<div class="item"><div class="ic">${ICON(t.icon)}</div><b>${esc(t.label)}</b>${keys(t.keys)}</div>`).join('')}</div>`;
     if (s.answers) h += `<span class="label">Det ved du</span><div class="list">${s.answers.map(a => `<div class="item"><div class="ic">${ICON(a.icon)}</div><b>${esc(a.label)}</b>${keys(a.keys)}${a.note ? `<p class="note">${esc(a.note)}</p>` : ''}</div>`).join('')}</div>`;
-    if (s.evidence) h += `<span class="label">Dine beviser</span><div class="list">${s.evidence.map(e => `<div class="item ${e.played ? 'done' : ''}"><div class="ic">${ICON(e.played ? 'check' : e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}${e.canPlay ? `<button class="btn ${e.played ? '' : 'role'} sm act" data-a="play" data-i="${e.i}">${e.played ? 'Vis igen' : 'Fremlæg'}</button>` : ''}</div>`).join('')}</div>`;
+    if (s.shown) h += shownHtml(s.shown);
+    if (s.evidence) h += `<span class="label">Dine beviser${s.evCount ? ` · ${s.evCount.n} af ${s.evCount.max} fremlagt` : ''}</span><div class="list">${s.evidence.map(e => `<div class="item ${e.played ? 'done' : ''}"><div class="ic">${ICON(e.played ? 'check' : e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}${e.canPlay ? `<button class="btn ${e.played ? '' : 'role'} sm act" data-a="play" data-i="${e.i}">${e.played ? 'Vis igen' : 'Fremlæg'}</button>` : ''}</div>`).join('')}</div>`;
     if (s.secret) h += `<div class="secret"><span class="label">Det kan forsvareren spørge om</span><p>${esc(s.secret)}</p></div>`;
-    if (s.objection) h += `<button class="btn danger objbtn wide" data-a="sheet" data-s="object">Indsigelse! <small>1 tilbage</small></button>`;
-    else if (s.objUsed) h += `<button class="btn objbtn wide" disabled>Indsigelse brugt i denne tur</button>`;
+    if (s.objection) h += `<button class="btn danger objbtn wide" data-a="sheet" data-s="object">${s.shown ? 'Indsigelse mod beviset!' : 'Indsigelse!'} <small>1 tilbage</small></button>`;
+    else if (s.objUsed) h += `<button class="btn objbtn wide" disabled>${s.objUsed === 'bevis' ? 'Indsigelse brugt mod dette bevis' : 'Indsigelse brugt i denne tur'}</button>`;
     return h;
   }
   function endHtml(s) {
@@ -165,15 +166,28 @@
   }
   const truthHtml = t => `<section class="cue enter"><div class="head"><div class="ic">${ICON('spark')}</div><div><span class="label">Den rigtige sag</span><h2>${esc(t.title)}</h2></div></div><p>${esc(t.text)}</p><div class="starter"><small>Bagefter</small>${esc(t.epilogue)}</div></section>`;
 
+  const objTag = o => o ? `<span class="tag ${o.status}">${o.status === 'pending' ? 'Indsigelse – venter' : o.status === 'accepted' ? 'Indsigelse taget til følge' : 'Indsigelse afvist'}</span>` : '';
+  const shownHtml = items => `<span class="label">Fremlagt</span>${items.length ? `<div class="list">${items.map(e => `<div class="item"><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)} ${objTag(e.objection)}</b>${keys(e.keys)}</div>`).join('')}</div>` : '<p class="muted">Intet bevis fremlagt endnu.</p>'}`;
+  function presentedHtml(p) {
+    const notes = store.get('rs-notes-' + V.code) || {};
+    const who = p.side === 'prosecutor' ? 'Anklageren' : 'Forsvareren';
+    const cards = p.items.map(e => `<div class="evcard"><span class="label">Bevis ${e.n} af 2 ${objTag(e.objection)}</span>
+      <div class="evhead"><div class="ic">${ICON(e.icon)}</div><h3>${esc(e.title)}</h3></div>${keys(e.keys)}
+      <div class="seg"><button class="yes" data-a="note" data-k="${e.k}" data-v="1" aria-pressed="${notes[e.k] === 1}">Overbevisende</button><button class="no" data-a="note" data-k="${e.k}" data-v="2" aria-pressed="${notes[e.k] === 2}">Tvivlsomt</button></div></div>`).join('');
+    return `<section class="presented"><span class="label">${ICON('folder')}${who} har fremlagt</span>
+      ${cards || `<p class="muted">Venter på, at ${who.toLowerCase()} fremlægger et bevis …</p>`}
+      ${p.items.length < 2 && p.left.length ? `<p class="muted small">Kan stadig fremlægges: ${p.left.map(esc).join(' · ')}</p>` : ''}</section>`;
+  }
   const paras = t => (Array.isArray(t) ? t : [t]).map(x => `<p>${esc(x)}</p>`).join('');
   /* ---------- dommeren ---------- */
   function judgeHtml() {
     const s = V.screen, n = V.beats.length;
     let h = `<header class="top"><div class="badge">${ICON('logo')}</div><div><b>Dommer · trin ${V.beat + 1} af ${n}</b><span>${esc(V.case.title)} · kode ${esc(V.code)}</span></div><button class="btn sm" data-a="sheet" data-s="roles">Roller</button></header>
       <nav class="steps" aria-label="Retssagens trin">${V.beats.map((b, i) => `<button class="${i < V.beat ? 'done' : i === V.beat ? 'now' : ''}" data-a="beat" data-i="${i}"><i>${i < V.beat ? '✓' : i + 1}</i>${esc(b)}</button>`).join('')}</nav>`;
-    if (V.objection && V.objection.status === 'pending') h += `<div class="alert enter"><span class="label" style="color:#f3e1de">Indsigelse fra ${esc(V.objection.byTitle.toLowerCase())}en</span><h3>»${esc(V.objection.type)}«</h3>
+    if (V.objection && V.objection.status === 'pending') h += `<div class="alert enter"><span class="label" style="color:#f3e1de">Indsigelse fra ${esc(V.objection.byTitle.toLowerCase())}en</span><h3>»${esc(V.objection.type)}«</h3>${V.objection.about ? `<p style="color:#f3e1de">Mod beviset: ${esc(V.objection.about)}</p>` : ''}
       <div class="row"><button class="btn ok" data-a="rule" data-ok="1">Taget til følge</button><button class="btn" data-a="rule" data-ok="0">Afvist</button></div></div>`;
     h += `<div><span class="label">Nu</span><h1 style="font-size:28px;margin-top:4px">${esc(s.now)}</h1><p class="muted" style="margin-top:6px">${esc(s.hint)}</p></div>`;
+    if (s.presented) h += presentedHtml(s.presented);
     if (s.script && !(V.screen.extras || []).some(e => e.type === 'verdict' && V.verdict)) h += `<div class="script"><span class="label">${ICON('speech')}Læs højt</span>${paras(s.script)}</div>`;
     if (s.warning && V.beat === 0) h += `<p class="warn">${esc(s.warning)}</p>`;
     if (V.beat > 0 && V.beat < n - 1) h += `<div><span class="label">Hvem har ordet?</span><div class="floor" style="margin-top:6px">${V.seats.map(st => `<button data-a="floor" data-r="${st.role}" aria-pressed="${V.floor === st.role}">${badge(st.role)}<span>${esc(st.name || st.title)}</span></button>`).join('')}</div></div>`;
@@ -192,8 +206,8 @@
         <p><b>Næste trin:</b> Den store knap nederst flytter alle videre.</p></div>`;
       case 'questions': return `<div class="card"><span class="label">Dine egne spørgsmål til vidnet</span>${e.items.map(q => `<p>• ${esc(q)}</p>`).join('')}</div>`;
       case 'rules': return `<div class="card"><span class="label">Indsigelse – tag til følge hvis …</span>
-        <p><b>Ledende:</b> spørgsmålet indeholder selv svaret.</p><p><b>Rygter:</b> vidnet har kun hørt det fra andre.</p><p><b>Gætter:</b> vidnet siger »jeg tror nok …«.</p><p><b>Irrelevant:</b> det har intet med sagen at gøre.</p>
-        <p class="muted">Hver advokat har én indsigelse pr. trin. Forsvareren kan gøre indsigelse mod anklageren og vidnet – anklageren kun mod forsvareren.</p></div>`;
+        <p><b>Ledende:</b> spørgsmålet indeholder selv svaret.</p><p><b>Rygter:</b> vidnet har kun hørt det fra andre.</p><p><b>Gætter:</b> vidnet siger »jeg tror nok …«.</p><p><b>Irrelevant:</b> det har intet med sagen at gøre.</p><p><b>Presser vidnet:</b> spørgsmålene er urimelige.</p>
+        <p class="muted">Hver advokat har én indsigelse pr. trin. Forsvareren kan gøre indsigelse mod anklageren og vidnet – anklageren kun mod forsvareren. »Vidnet gætter« og »Rygter« kan kun bruges, når vidnet taler.</p></div>`;
       case 'twist': return `<div class="cue"><div class="head"><div class="ic">${ICON(e.icon)}</div><div><span class="label">Nyt bevis</span><h2>${esc(e.title)}</h2></div></div></div>`;
       case 'notebook': {
         const ev = s.evidence;
@@ -241,7 +255,7 @@
         <span class="label">Rollerne</span>${seatsHtml(false)}`;
     } else if (ui.sheet === 'roles' && V) h = `<h2>Rollerne</h2>${seatsHtml(false)}`;
     else if (ui.sheet === 'object' && V) h = `<h2>Hvad er der galt?</h2><p class="muted">Vælg – så får dommeren besked. Råb »Indsigelse!« højt samtidig.</p>
-      <div class="list">${V.objections.map((o, i) => `<button class="opt" data-a="object" data-t="${i}"><div class="ic">${ICON('hand')}</div><b>${esc(o)}</b><span>${['Spørgsmålet indeholder selv svaret', 'Vidnet har kun hørt det fra andre', 'Vidnet gætter i stedet for at vide', 'Det har intet med sagen at gøre'][i]}</span><div></div></button>`).join('')}</div>`;
+      <div class="list">${(V.objections || []).map(o => `<button class="opt" data-a="object" data-t="${o.i}"><div class="ic">${ICON('hand')}</div><b>${esc(o.t)}</b><span>${esc(o.d)}</span><div></div></button>`).join('')}</div>`;
     if (h) h += `<button class="btn wide" data-a="closeSheet">Luk</button>`;
     const key = ui.sheet + h;
     if (key === ui.sheetKey) return; ui.sheetKey = key;
