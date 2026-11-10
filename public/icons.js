@@ -41,6 +41,9 @@
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
     qr: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/>',
     lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>',
+    home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+    door: '<path d="M5 21V4a1 1 0 011-1h12a1 1 0 011 1v17M3 21h18"/><circle cx="15" cy="12" r="1"/>',
+    logo: '<g fill="currentColor" stroke="none"><g transform="rotate(-45 11 9)"><rect x="4.5" y="6" width="13" height="6" rx="1"/><rect x="3" y="4.6" width="3.2" height="8.8" rx="1"/><rect x="15.8" y="4.6" width="3.2" height="8.8" rx="1"/><rect x="9.8" y="12" width="2.4" height="12" rx="1.2"/></g><rect x="2" y="19.6" width="11" height="2.8" rx="1"/></g>',
     hand: '<path d="M8 13V5a1.5 1.5 0 013 0v6M11 11V3.5a1.5 1.5 0 013 0V11M14 11V5a1.5 1.5 0 013 0v8c0 4-3 8-7 8-3 0-5-2-6.5-4.5L2 13a1.5 1.5 0 012.6-1.5L8 15"/>'
   };
   window.ICON = (name, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || P.note}</svg>`;

@@ -11,7 +11,7 @@
   const store = { get: k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
   const params = new URLSearchParams(location.search);
   // Rollefarver fra styletilen: bordeaux, mørkegrøn, salviegrøn, polstringsblå
-  const ROLE = { judge: { c: '#7a2b2b', ink: '#fff', i: 'gavel', t: 'Dommer' }, prosecutor: { c: '#3f5446', ink: '#fff', i: 'scale', t: 'Anklager' }, defense: { c: '#6e846f', ink: '#fff', i: 'shield', t: 'Forsvarer' }, witness: { c: '#34405e', ink: '#fff', i: 'eye', t: 'Vidne' } };
+  const ROLE = { judge: { c: '#7a2b2b', ink: '#fff', i: 'logo', t: 'Dommer' }, prosecutor: { c: '#3f5446', ink: '#fff', i: 'scale', t: 'Anklager' }, defense: { c: '#6e846f', ink: '#fff', i: 'shield', t: 'Forsvarer' }, witness: { c: '#34405e', ink: '#fff', i: 'eye', t: 'Vidne' } };
 
   let V = null, auth = null, es = null, offset = 0, last = { played: 0, obj: 0, floor: undefined }, ui = { screen: 'home', err: null, sheet: null, secret: false, html: '', foot: '' };
 
@@ -71,10 +71,10 @@
   }
 
   function homeHtml() {
-    return `<div class="brand"><div class="mark">${ICON('gavel')}</div><h1>Hammerslag</h1><p>Et retsdrama for fire. Dommeren styrer – de andre får stikord og spiller deres rolle.</p></div>
+    return `<div class="brand"><div class="mark">${ICON('logo')}</div><h1>Hammerslag</h1><p>Et retsdrama for fire. Dommeren styrer – de andre får stikord og spiller deres rolle.</p></div>
       <div class="ornament">${ICON('rosette')}</div>
       <div class="list">
-        ${['judge', 'prosecutor', 'defense', 'witness'].map(r => `<div class="seat">${badge(r)}<div><b>${ROLE[r].t}</b><span>${{ judge: 'Styrer retssagen og afsiger dommen', prosecutor: 'Skal bevise, at den tiltalte er skyldig', defense: 'Skal skabe rimelig tvivl', witness: 'Så noget – og gemmer på en hemmelighed' }[r]}</span></div><div></div></div>`).join('')}
+        ${['judge', 'prosecutor', 'defense', 'witness'].map(r => `<div class="seat">${badge(r)}<div><b>${ROLE[r].t}</b><span>${{ judge: 'Styrer retssagen og afsiger dommen', prosecutor: 'Skal bevise, at den tiltalte er skyldig', defense: 'Skal skabe rimelig tvivl', witness: 'Fortæller, hvad der skete' }[r]}</span></div><div></div></div>`).join('')}
       </div>
       <button class="btn primary lg wide" data-a="toCreate">Opret retssag – jeg er dommer</button>
       <button class="btn lg wide" data-a="toJoin">Deltag med kode</button>`;
@@ -83,7 +83,7 @@
     return `<div class="brand"><h1>Ny retssag</h1><p>Du bliver dommer. Vælg en sag.</p></div>
       ${ui.err ? `<div class="error">${esc(ui.err)}</div>` : ''}
       <div class="card"><div class="field"><label class="label" for="nm">Dit navn</label><input id="nm" maxlength="16" value="${esc(store.get('rs-name') || '')}" autocomplete="off"></div></div>
-      <div class="list">${(ui.cases || []).map(c => `<button class="opt" data-a="pickCase" data-i="${c.i}" aria-pressed="${ui.caseIdx === c.i}"><div class="ic">${ICON(c.icon)}</div><b>${esc(c.title)}</b><span>${esc(c.tagline)}</span><div class="tick">${ICON('check')}</div></button>`).join('')}</div>
+      <div class="list">${(ui.cases || []).map(c => `<button class="opt" data-a="pickCase" data-i="${c.i}" aria-pressed="${ui.caseIdx === c.i}"><div class="ic">${ICON(c.icon)}</div><b>${esc(c.title)}</b><span>${esc(c.tagline)}</span><div class="tick">${ICON('check')}</div>${c.warning ? `<p class="warn">${esc(c.warning)}</p>` : ''}</button>`).join('')}</div>
       <button class="btn primary lg wide" data-a="create">Opret retssag</button>
       <button class="btn ghost wide" data-a="toHome">Tilbage</button>`;
   }
@@ -101,7 +101,7 @@
   function lobbyHtml() {
     const judge = V.me.role === 'judge';
     const filled = V.seats.filter(s => s.name).length;
-    if (judge) return `<div class="brand" style="padding-top:6px"><span class="label">Sagen</span><h1 style="font-size:30px">${esc(V.case.title)}</h1><p>${esc(V.case.tagline)}</p></div>
+    if (judge) return `<div class="brand" style="padding-top:6px"><span class="label">Sagen</span><h1 style="font-size:30px">${esc(V.case.title)}</h1><p>${esc(V.case.tagline)}</p>${V.case.warning ? `<p class="warn">${esc(V.case.warning)}</p>` : ''}</div>
       <div class="card" style="align-items:center;text-align:center"><span class="label">Scan for at deltage</span><div class="qr" id="qr"></div><span class="label">eller skriv koden</span><div class="codebig">${esc(V.code)}</div></div>
       <span class="label">Rollerne</span>${seatsHtml(false)}
       <button class="btn primary lg wide" data-a="start" ${filled < 4 ? 'disabled' : ''}>${filled < 4 ? `Venter på spillere (${filled}/4)` : 'Sæt retten'}</button>
@@ -146,12 +146,13 @@
     if (s.theories) h += `<span class="label">Vælg én teori</span><div class="list">${s.theories.map(t => `<button class="opt" data-a="theory" data-i="${t.i}" aria-pressed="${t.picked}"><div class="ic">${ICON(me === 'prosecutor' ? 'scale' : 'shield')}</div><b>${esc(t.title)}</b><div class="tick">${ICON('check')}</div>${keys(t.keys)}</button>`).join('')}</div>`;
     if (s.preview) h += `<span class="label">Dine beviser</span><div class="list">${s.preview.map(e => `<div class="item"><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}</div>`).join('')}</div>`;
     if (s.personas) h += `<span class="label">Din personlighed</span><div class="list">${s.personas.map(p => `<button class="opt" data-a="persona" data-i="${p.i}" aria-pressed="${p.picked}"><div class="ic">${ICON('users')}</div><b>${esc(p.title)}</b><div class="tick">${ICON('check')}</div>${keys(p.keys)}</button>`).join('')}</div>`;
-    if (s.saw) h += `<span class="label">Det så du</span><div class="card">${keys(s.saw)}</div>`;
+    if (s.saw) h += `<span class="label">Det fortæller du</span><div class="card">${keys(s.saw)}</div>`;
     if (s.topics) h += `<span class="label">Spørg ind til</span><div class="list">${s.topics.map(t => `<div class="item"><div class="ic">${ICON(t.icon)}</div><b>${esc(t.label)}</b>${keys(t.keys)}</div>`).join('')}</div>`;
     if (s.answers) h += `<span class="label">Det ved du</span><div class="list">${s.answers.map(a => `<div class="item"><div class="ic">${ICON(a.icon)}</div><b>${esc(a.label)}</b>${keys(a.keys)}${a.note ? `<p class="note">${esc(a.note)}</p>` : ''}</div>`).join('')}</div>`;
     if (s.evidence) h += `<span class="label">Dine beviser</span><div class="list">${s.evidence.map(e => `<div class="item ${e.played ? 'done' : ''}"><div class="ic">${ICON(e.played ? 'check' : e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}${e.canPlay ? `<button class="btn ${e.played ? '' : 'role'} sm act" data-a="play" data-i="${e.i}">${e.played ? 'Vis igen' : 'Fremlæg'}</button>` : ''}</div>`).join('')}</div>`;
-    if (s.secret) h += `<div class="secret ${ui.secret ? '' : 'blur'}" data-a="secret"><span class="label">Din hemmelighed ${ui.secret ? '' : '· tryk for at se'}</span><p>${esc(s.secret)}</p></div>`;
-    if (s.objection) h += `<button class="btn danger objbtn wide" data-a="sheet" data-s="object">Indsigelse!</button>`;
+    if (s.secret) h += `<div class="secret"><span class="label">Det kan forsvareren spørge om</span><p>${esc(s.secret)}</p></div>`;
+    if (s.objection) h += `<button class="btn danger objbtn wide" data-a="sheet" data-s="object">Indsigelse! <small>1 tilbage</small></button>`;
+    else if (s.objUsed) h += `<button class="btn objbtn wide" disabled>Indsigelse brugt i denne tur</button>`;
     return h;
   }
   function endHtml(s) {
@@ -159,20 +160,22 @@
     if (!s.verdict) return h + cueHtml(s.cue);
     h += `<div class="stamp ${s.verdict} enter">${s.verdict === 'guilty' ? 'Skyldig' : 'Ikke skyldig'}</div>`;
     h += `<div class="status ${s.win ? 'speak' : ''}"><div class="ic">${ICON(s.win ? 'check' : 'x')}</div><div><span class="label">${ROLE[V.me.role].t}</span><h2>${s.win ? 'Du vandt' : 'Du tabte'}</h2><p style="font-size:14px">${esc(s.winText)}</p></div></div>`;
-    if (!s.truth) return h + `<p class="muted" style="text-align:center">Venter på, at dommeren afslører sandheden …</p>`;
+    if (!s.truth) return h + `<p class="muted" style="text-align:center">Venter på, at dommeren viser den rigtige dom …</p>`;
     return h + truthHtml(s.truth);
   }
-  const truthHtml = t => `<section class="cue enter"><div class="head"><div class="ic">${ICON('spark')}</div><div><span class="label">Sandheden</span><h2>${esc(t.title)}</h2></div></div><p>${esc(t.text)}</p><div class="starter"><small>Bagefter</small>${esc(t.epilogue)}</div></section>`;
+  const truthHtml = t => `<section class="cue enter"><div class="head"><div class="ic">${ICON('spark')}</div><div><span class="label">Den rigtige sag</span><h2>${esc(t.title)}</h2></div></div><p>${esc(t.text)}</p><div class="starter"><small>Bagefter</small>${esc(t.epilogue)}</div></section>`;
 
+  const paras = t => (Array.isArray(t) ? t : [t]).map(x => `<p>${esc(x)}</p>`).join('');
   /* ---------- dommeren ---------- */
   function judgeHtml() {
     const s = V.screen, n = V.beats.length;
-    let h = `<header class="top"><div class="badge">${ICON('gavel')}</div><div><b>Dommer · trin ${V.beat + 1} af ${n}</b><span>${esc(V.case.title)} · kode ${esc(V.code)}</span></div><button class="btn sm" data-a="sheet" data-s="roles">Roller</button></header>
+    let h = `<header class="top"><div class="badge">${ICON('logo')}</div><div><b>Dommer · trin ${V.beat + 1} af ${n}</b><span>${esc(V.case.title)} · kode ${esc(V.code)}</span></div><button class="btn sm" data-a="sheet" data-s="roles">Roller</button></header>
       <nav class="steps" aria-label="Retssagens trin">${V.beats.map((b, i) => `<button class="${i < V.beat ? 'done' : i === V.beat ? 'now' : ''}" data-a="beat" data-i="${i}"><i>${i < V.beat ? '✓' : i + 1}</i>${esc(b)}</button>`).join('')}</nav>`;
     if (V.objection && V.objection.status === 'pending') h += `<div class="alert enter"><span class="label" style="color:#f3e1de">Indsigelse fra ${esc(V.objection.byTitle.toLowerCase())}en</span><h3>»${esc(V.objection.type)}«</h3>
       <div class="row"><button class="btn ok" data-a="rule" data-ok="1">Taget til følge</button><button class="btn" data-a="rule" data-ok="0">Afvist</button></div></div>`;
     h += `<div><span class="label">Nu</span><h1 style="font-size:28px;margin-top:4px">${esc(s.now)}</h1><p class="muted" style="margin-top:6px">${esc(s.hint)}</p></div>`;
-    if (s.script && !(V.screen.extras || []).some(e => e.type === 'verdict' && V.verdict)) h += `<div class="script"><span class="label">${ICON('speech')}Læs højt</span><p>${esc(s.script)}</p></div>`;
+    if (s.script && !(V.screen.extras || []).some(e => e.type === 'verdict' && V.verdict)) h += `<div class="script"><span class="label">${ICON('speech')}Læs højt</span>${paras(s.script)}</div>`;
+    if (s.warning && V.beat === 0) h += `<p class="warn">${esc(s.warning)}</p>`;
     if (V.beat > 0 && V.beat < n - 1) h += `<div><span class="label">Hvem har ordet?</span><div class="floor" style="margin-top:6px">${V.seats.map(st => `<button data-a="floor" data-r="${st.role}" aria-pressed="${V.floor === st.role}">${badge(st.role)}<span>${esc(st.name || st.title)}</span></button>`).join('')}</div></div>`;
     if (V.timer) { const t = timerLeft(); h += `<div class="timerbox"><span class="t ${t <= 10 && V.timer.running ? 'low' : ''}" data-timer>${fmt(t)}</span><span class="grow muted">${V.timer.running ? 'Uret kører' : 'Ur'}</span>
       <button class="btn sm ${V.timer.running ? '' : 'ok'}" data-a="timer" data-t="${V.timer.running ? 'pause' : 'start'}">${V.timer.running ? 'Pause' : 'Start'}</button><button class="btn sm ghost" data-a="timer" data-t="reset" aria-label="Nulstil ur">↺</button></div>`; }
@@ -185,12 +188,13 @@
       case 'timeline': return `<div class="card"><span class="label">Tidslinjen</span><div class="tl">${e.items.map(([t, x]) => `<div><b>${esc(t)}</b><span>${esc(x)}</span></div>`).join('')}</div></div>`;
       case 'tools': return `<div class="card"><span class="label">Din magt</span>
         <p><b>Ordet:</b> Tryk på en person under »Hvem har ordet?«. Deres telefon skifter til »Din tur«.</p>
-        <p><b>Indsigelser:</b> Advokaterne kan sende en indsigelse. Den dukker op her – du afgør den.</p>
+        <p><b>Indsigelser:</b> Advokaterne har én indsigelse hver pr. trin. Den dukker op her – du afgør den.</p>
         <p><b>Næste trin:</b> Den store knap nederst flytter alle videre.</p></div>`;
       case 'questions': return `<div class="card"><span class="label">Dine egne spørgsmål til vidnet</span>${e.items.map(q => `<p>• ${esc(q)}</p>`).join('')}</div>`;
       case 'rules': return `<div class="card"><span class="label">Indsigelse – tag til følge hvis …</span>
-        <p><b>Ledende:</b> spørgsmålet indeholder selv svaret.</p><p><b>Rygter:</b> vidnet har kun hørt det fra andre.</p><p><b>Gætter:</b> vidnet siger »jeg tror nok …«.</p><p><b>Irrelevant:</b> det har intet med sagen at gøre.</p></div>`;
-      case 'twist': return `<div class="cue"><div class="head"><div class="ic">${ICON(e.icon)}</div><div><span class="label">Ny afsløring</span><h2>${esc(e.title)}</h2></div></div></div>`;
+        <p><b>Ledende:</b> spørgsmålet indeholder selv svaret.</p><p><b>Rygter:</b> vidnet har kun hørt det fra andre.</p><p><b>Gætter:</b> vidnet siger »jeg tror nok …«.</p><p><b>Irrelevant:</b> det har intet med sagen at gøre.</p>
+        <p class="muted">Hver advokat har én indsigelse pr. trin. Forsvareren kan gøre indsigelse mod anklageren og vidnet – anklageren kun mod forsvareren.</p></div>`;
+      case 'twist': return `<div class="cue"><div class="head"><div class="ic">${ICON(e.icon)}</div><div><span class="label">Nyt bevis</span><h2>${esc(e.title)}</h2></div></div></div>`;
       case 'notebook': {
         const ev = s.evidence;
         if (e.summary) {
@@ -212,7 +216,7 @@
         const why = reasons.length ? reasons.slice(0, 3).join(', ') : (g ? 'beviserne samlet' : 'at skylden ikke er bevist');
         let h = `<div class="stamp ${V.verdict}">${g ? 'Skyldig' : 'Ikke skyldig'}</div>
           <div class="script"><span class="label">${ICON('speech')}Læs dommen højt</span><p>Retten finder ${esc(V.case.accused)} ${g ? 'SKYLDIG' : 'IKKE SKYLDIG'}. ${g ? 'Retten lægger især vægt på' : 'Der er rimelig tvivl, især på grund af'}: ${esc(why)}.</p></div>`;
-        if (!V.revealed) return h + `<button class="btn primary lg wide" data-a="reveal">Afslør sandheden for alle</button><button class="btn ghost wide" data-a="verdict" data-v="">Fortryd dommen</button>`;
+        if (!V.revealed) return h + `<button class="btn primary lg wide" data-a="reveal">Vis den rigtige dom for alle</button><button class="btn ghost wide" data-a="verdict" data-v="">Fortryd dommen</button>`;
         const right = s.truth.truth === V.verdict;
         return h + truthHtml(s.truth) + `<div class="status ${right ? 'speak' : ''}"><div class="ic">${ICON(right ? 'check' : 'x')}</div><div><h2>${right ? 'Retten ramte plet' : 'Retten tog fejl'}</h2><p style="font-size:14px">${right ? 'Dommen passer med sandheden.' : 'Retten kan kun dømme ud fra det, der bliver bevist.'}</p></div></div>
           <button class="btn wide" data-a="newcase">Ny sag med de samme spillere</button>`;
