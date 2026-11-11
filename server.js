@@ -447,6 +447,15 @@ http.createServer(async (req, res) => {
     }
     const f = path.normalize(path.join(PUB, url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname)));
     if (!f.startsWith(PUB)) { res.writeHead(403); return res.end(); }
+    // Video: understøt Range-forespørgsler (kræves af iPhone).
+    if (path.extname(f) === '.mp4') return fs.stat(f, (err, st) => {
+      if (err) { res.writeHead(404); return res.end('Ikke fundet'); }
+      const m = /bytes=(\d*)-(\d*)/.exec(req.headers.range || '');
+      if (!m) { res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': st.size, 'Accept-Ranges': 'bytes' }); return fs.createReadStream(f).pipe(res); }
+      const start = m[1] ? +m[1] : 0, end = m[2] ? Math.min(+m[2], st.size - 1) : st.size - 1;
+      res.writeHead(206, { 'Content-Type': 'video/mp4', 'Content-Range': `bytes ${start}-${end}/${st.size}`, 'Content-Length': end - start + 1, 'Accept-Ranges': 'bytes' });
+      fs.createReadStream(f, { start, end }).pipe(res);
+    });
     fs.readFile(f, (err, data) => {
       if (err) { res.writeHead(404); return res.end('Ikke fundet'); }
       res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-cache' }); res.end(data);

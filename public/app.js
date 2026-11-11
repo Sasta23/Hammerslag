@@ -91,7 +91,8 @@
         ${['judge', 'prosecutor', 'defense', 'witness'].map(r => `<div class="seat">${badge(r)}<div><b>${ROLE[r].t}</b><span>${{ judge: 'Styrer retssagen og afsiger dommen', prosecutor: 'Skal bevise, at den tiltalte er skyldig', defense: 'Skal skabe rimelig tvivl', witness: 'Fortæller, hvad der skete' }[r]}</span></div><div></div></div>`).join('')}
       </div>
       <button class="btn primary lg wide" data-a="toCreate">Opret retssag – jeg er dommer</button>
-      <button class="btn lg wide" data-a="toJoin">Deltag med kode</button>`;
+      <button class="btn lg wide" data-a="toJoin">Deltag med kode</button>
+      <button class="btn ghost wide" data-a="guide">${ICON('video')} Se video-guide (1 min.)</button>`;
   }
   const SIZE_INFO = {
     4: ['Dommer, anklager, forsvarer og vidne', 'Vidnet bliver afhørt og krydsforhørt.'],
@@ -336,7 +337,8 @@
       h = `<h2>Du er ${ROLE[V.me.role].t.toLowerCase()}</h2><p>${esc(V.me.goal)}</p>
         <div class="card"><span class="label">Den tiltalte</span><p><b>${esc(V.case.accused)}</b></p></div>
         <span class="label">Rollerne</span>${seatsHtml(false)}`;
-    } else if (ui.sheet === 'roles' && V) h = `<h2>Rollerne</h2>${seatsHtml(false)}`;
+    } else if (ui.sheet === 'guide') h = `<h2>Sådan spiller I</h2><video src="/guide.mp4" controls playsinline autoplay style="width:100%;border-radius:6px;background:#000;aspect-ratio:16/9"></video>`;
+    else if (ui.sheet === 'roles' && V) h = `<h2>Rollerne</h2>${seatsHtml(false)}`;
     else if (ui.sheet === 'object' && V) h = `<h2>Hvad er der galt?</h2><p class="muted">Vælg – så får dommeren besked. Råb »Indsigelse!« højt samtidig.</p>
       <div class="list">${(V.objections || []).map(o => `<button class="opt" data-a="object" data-t="${o.i}"><div class="ic">${ICON('hand')}</div><b>${esc(o.t)}</b><span>${esc(o.d)}</span><div></div></button>`).join('')}</div>`;
     if (h) h += `<button class="btn wide" data-a="closeSheet">Luk</button>`;
@@ -414,6 +416,7 @@
     const a = b.dataset.a, i = Number(b.dataset.i);
     switch (a) {
       case 'toHome': ui.screen = 'home'; ui.err = null; return render();
+      case 'guide': ui.sheet = 'guide'; return render();
       case 'toJoin': ui.screen = 'join'; ui.err = null; return render();
       case 'toCreate': ui.screen = 'create'; ui.err = null; ui.cases = await fetch('/api/cases').then(r => r.json()).catch(() => []); if (ui.caseIdx == null) ui.caseIdx = 0; return render();
       case 'pickCase': ui.caseIdx = i; store.set('rs-name', ($('nm') || {}).value || ''); return render();
