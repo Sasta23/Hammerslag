@@ -98,7 +98,7 @@ function base(req) {
 }
 function newRoom(caseIdx, joinBase, size = 4) {
   const r = { code: code(), caseIdx, size, variant: crypto.randomInt(CASES[caseIdx].twists.length), joinBase, players: [], phase: 'lobby', beat: 0, floor: 'judge',
-    timer: null, objection: null, played: [], theory: {}, persona: null, objUsed: {}, evObj: {}, verdict: null, revealed: false, conns: new Set(), fx: 0, touched: Date.now() };
+    timer: null, objection: null, played: [], theory: {}, persona: null, objUsed: {}, evObj: {}, sel: {}, verdict: null, revealed: false, conns: new Set(), fx: 0, touched: Date.now() };
   rooms.set(r.code, r); return r;
 }
 const FORKL = { id: 'forkl', label: 'Vidneforklaringen', floor: 'judge', secs: 90 };
@@ -149,6 +149,7 @@ function judgeScreen(r) {
     case 'bev_p': case 'bev_d': {
       const P = b.id === 'bev_p', side = BEV[b.id];
       s.now = P ? 'Anklagerens beviser' : 'Forsvarerens beviser';
+      s.timerNote = '0:30 til at vælge beviser · 1:00 til at fremlægge';
       s.hint = P && r.size === 2 ? `Du fremlægger anklagerens beviser i boksen nederst (højst ${MAX_EVIDENCE}). Læs dem højt. Forsvareren kan gøre indsigelse mod hvert bevis.` : `${P ? 'Anklageren' : 'Forsvareren'} fremlægger op til ${MAX_EVIDENCE} beviser. ${P ? 'Forsvareren' : 'Anklageren'} kan gøre indsigelse mod hvert bevis. Vurdér hvert bevis.`;
       s.script = [`${P ? 'Anklageren' : 'Forsvareren'} må nu fremlægge sine beviser.`, `Højst ${MAX_EVIDENCE} beviser.`];
       s.presented = { side, items: presented(r, side), left: (P ? c.prosecution : c.defense).evidence.filter((e, i) => !r.played.some(x => x.role === side && x.i === i)).map(e => e.title) };
@@ -234,11 +235,13 @@ function playerScreen(r, role) {
     case 'bev_p': case 'bev_d': {
       const presenter = BEV[b.id], items = presented(r, presenter);
       if (role === presenter) {
-        const count = items.length, played = i => r.played.some(x => x.role === role && x.i === i);
+        const played = i => r.played.some(x => x.role === role && x.i === i), sel = r.sel[role] || [];
         s.mode = mine ? 'speak' : 'ready';
-        s.cue = { icon: 'folder', title: 'Fremlæg dine beviser', sub: `Vælg højst ${MAX_EVIDENCE}. Tryk »Fremlæg« – så ser alle beviset. Forklar så, hvad det viser.`, starter: 'Ærede dommer, beviset viser …', tip: 'Vent på dommeren, hvis der kommer en indsigelse.' };
-        s.evidence = side.evidence.map((e, i) => ({ i, ...e, played: played(i), canPlay: mine && (played(i) || count < MAX_EVIDENCE) }));
-        s.evCount = { n: count, max: MAX_EVIDENCE };
+        s.cue = { icon: 'folder', title: 'Dine beviser', starter: 'Ærede dommer, beviset viser …', tip: 'Kommer der en indsigelse, så vent på dommeren.' };
+        s.evSteps = { picked: sel.length, max: MAX_EVIDENCE, shown: items.length };
+        s.split = { at: 60, first: 'Vælg dine beviser', second: 'Fremlæg dine beviser' };
+        s.evidence = side.evidence.map((e, i) => ({ i, ...e, played: played(i), selected: sel.includes(i), canSelect: !played(i) && (sel.includes(i) || sel.length < MAX_EVIDENCE), canPlay: mine && sel.includes(i) }));
+        s.evidence.sort((a, b) => b.selected - a.selected);
       } else if (lawyer) {
         listen(`${ROLES[presenter].title}en fremlægger`, ['Hvad viser det IKKE?', 'Anden forklaring?'], 'folder');
         s.cue.sub = 'Du kan gøre én indsigelse mod hvert bevis.'; s.cue.starter = 'Det beviser intet, fordi …';
@@ -319,7 +322,7 @@ function broadcast(r) { r.touched = Date.now(); for (const c of r.conns) push(c)
 /* ---------- handlinger ---------- */
 function act(r, p, type, d = {}) {
   // Med 3 spillere spiller dommeren også den manglende rolle.
-  if (p.role === 'judge' && d && d.as && alsoPlays(r).includes(d.as) && ['theory', 'persona', 'play'].includes(type)) p = { ...p, role: d.as };
+  if (p.role === 'judge' && d && d.as && alsoPlays(r).includes(d.as) && ['theory', 'persona', 'play', 'select'].includes(type)) p = { ...p, role: d.as };
   const judge = p.role === 'judge', game = r.phase === 'game';
   const need = ok => { if (!ok) throw new Error('Det kan du ikke lige nu.'); };
   switch (type) {
@@ -353,9 +356,17 @@ function act(r, p, type, d = {}) {
       need(judge && r.objection && r.objection.status === 'pending'); r.objection.status = d.ok ? 'accepted' : 'rejected'; r.objection.id = ++r.fx;
       if (r.objection.ev) r.evObj[r.objection.ev] = { type: r.objection.type, status: r.objection.status };
       break;
+    case 'select': {
+      need(game && BEV[BT(r).id] === p.role && Number.isInteger(d.i) && (p.role === 'prosecutor' ? C(r).prosecution : C(r).defense).evidence[d.i]);
+      const sel = r.sel[p.role] = r.sel[p.role] || [];
+      if (sel.includes(d.i)) { need(!r.played.some(x => x.role === p.role && x.i === d.i)); sel.splice(sel.indexOf(d.i), 1); }
+      else { if (sel.length >= MAX_EVIDENCE) throw new Error(`Du kan højst vælge ${MAX_EVIDENCE} beviser.`); sel.push(d.i); }
+      break;
+    }
     case 'play': {
       need(game && BEV[BT(r).id] === p.role && r.floor === p.role && !(r.objection && r.objection.status === 'pending'));
       const ev = (p.role === 'prosecutor' ? C(r).prosecution : C(r).defense).evidence; need(ev[d.i]);
+      if (!(r.sel[p.role] || []).includes(d.i)) throw new Error('Vælg beviset først.');
       if (!r.played.some(x => x.role === p.role && x.i === d.i) && r.played.filter(x => x.role === p.role).length >= MAX_EVIDENCE) throw new Error(`Du kan højst fremlægge ${MAX_EVIDENCE} beviser.`);
       if (!r.played.some(x => x.role === p.role && x.i === d.i)) r.played.push({ role: p.role, i: d.i });
       else { r.played = r.played.filter(x => !(x.role === p.role && x.i === d.i)); r.played.push({ role: p.role, i: d.i }); }
@@ -363,7 +374,7 @@ function act(r, p, type, d = {}) {
     }
     case 'verdict': need(judge && BT(r).id === 'dom' && ['guilty', 'notGuilty', null].includes(d.v)); r.verdict = d.v; if (!d.v) r.revealed = false; break;
     case 'reveal': need(judge && r.verdict); r.revealed = true; break;
-    case 'newcase': need(judge); Object.assign(r, { phase: 'lobby', beat: 0, caseIdx: (r.caseIdx + 1) % CASES.length, variant: crypto.randomInt(CASES[(r.caseIdx + 1) % CASES.length].twists.length), played: [], theory: {}, persona: null, objUsed: {}, evObj: {}, verdict: null, revealed: false, objection: null, timer: null }); break;
+    case 'newcase': need(judge); Object.assign(r, { phase: 'lobby', beat: 0, caseIdx: (r.caseIdx + 1) % CASES.length, variant: crypto.randomInt(CASES[(r.caseIdx + 1) % CASES.length].twists.length), played: [], theory: {}, persona: null, objUsed: {}, evObj: {}, sel: {}, verdict: null, revealed: false, objection: null, timer: null }); break;
     default: throw new Error('Ukendt handling');
   }
 }

@@ -44,6 +44,19 @@
     const t = V && V.timer; if (!t) return null;
     return t.running ? Math.max(0, Math.ceil((t.endsAt - (Date.now() + offset)) / 1000)) : t.left;
   }
+  // Uret. Ved split (fx bevisfasen) deles tiden i to: først »vælg«, så »fremlæg«.
+  const phase = s => { const t = timerLeft(); return s && s.split && V.timer && t != null && t <= s.split.at && (V.timer.running || t < V.timer.secs) ? 2 : 1; };
+  function timerShown(s) {
+    const t = timerLeft(); if (t == null) return null;
+    if (!s || !s.split) return { t, of: V.timer.secs, label: V.timer.running ? 'Tid tilbage' : 'Uret er sat på pause' };
+    const ph = phase(s);
+    return ph === 1 ? { t: t - s.split.at, of: V.timer.secs - s.split.at, label: s.split.first } : { t, of: s.split.at, label: s.split.second };
+  }
+  function timerBar(s) {
+    if (!V.timer || (!V.timer.running && V.timer.left === V.timer.secs)) return '';
+    const x = timerShown(s);
+    return `<div class="tbar ${V.timer.running ? '' : 'paused'}" data-tbar><div class="tl"><span class="label" data-tlabel>${esc(x.label)}</span><span class="tnum" data-timer>${fmt(x.t)}</span></div><div class="track"><div class="fill" data-tfill style="width:${Math.max(0, Math.min(100, 100 * x.t / x.of))}%"></div></div></div>`;
+  }
   const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   function seatsHtml(clickable) {
     return `<div class="seats">${V.seats.map(s => {
@@ -125,7 +138,7 @@
   /* ---------- spillerne ---------- */
   function statusHtml() {
     const s = V.screen, t = timerLeft();
-    const timer = t != null && V.timer && V.timer.running ? `<span class="timer ${t <= 10 ? 'low' : ''}" data-timer>${fmt(t)}</span>` : '';
+    const timer = '';
     const who = V.floorName ? `${esc(V.floorName)} (${ROLE[V.floor].t.toLowerCase()})` : 'ingen';
     if (s.mode === 'speak') return `<div class="status speak enter"><div class="ic">${ICON('mic')}</div><div><span class="label"><span class="pulse"></span>Din tur</span><h2>Du har ordet</h2></div>${timer}</div>`;
     if (s.mode === 'ready') return `<div class="status ready"><div class="ic">${ICON('hourglass')}</div><div><span class="label">Gør dig klar</span><h2>Snart din tur</h2></div>${timer}</div>`;
@@ -145,7 +158,7 @@
   function playerHtml() {
     const s = V.screen, me = V.me.role;
     let h = `<header class="top"><div class="badge">${ICON(ROLE[me].i)}</div><div><b>${esc(V.me.name)} · ${ROLE[me].t}</b><span>${esc(V.case.title)}</span></div><button class="btn sm" data-a="sheet" data-s="role">Min rolle</button></header>`;
-    h += statusHtml();
+    h += timerBar(s) + statusHtml();
     if (s.mode === 'end') return h + endHtml(s);
     return h + playerBody(s, me);
   }
@@ -155,6 +168,11 @@
     if (s.facts) extra += `<div class="facts">${s.facts.map(([i, b, t]) => `<div class="fact">${ICON(i)}<b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('')}</div>`;
     if (s.twist) extra += `<div class="fact" style="flex-direction:row;gap:12px;align-items:flex-start">${ICON(s.twist.icon)}<div><b>${esc(s.twist.title)}</b><p style="font-size:14px;margin-top:4px">${esc(s.twist.text)}</p></div></div>`;
     if (s.used && s.used.length) extra += `<div><span class="label">Nævn dine beviser</span>${keys(s.used)}</div>`;
+    if (s.evSteps) {
+      const st = s.evSteps, ph = phase(s), two = ph === 2 || st.picked >= st.max;
+      h += `<div class="evsteps"><div class="evstep ${two ? 'done' : 'now'}"><i>${two ? '✓' : '1'}</i><div><b>Vælg ${st.max} beviser</b><span>30 sekunder · ${st.picked} af ${st.max} valgt</span></div></div>
+        <div class="evstep ${two ? 'now' : ''}"><i>2</i><div><b>Fremlæg dem</b><span>1 minut · tryk »Fremlæg« og forklar</span></div></div></div>`;
+    }
     h += cueHtml(s.cue, extra);
     if (s.showRoles) h += `<span class="label">I retten i dag</span>${seatsHtml(false)}`;
     if (s.theories) h += `<span class="label">Vælg én teori</span><div class="list">${s.theories.map(t => `<button class="opt" data-a="theory" data-i="${t.i}" aria-pressed="${t.picked}"><div class="ic">${ICON(me === 'prosecutor' ? 'scale' : 'shield')}</div><b>${esc(t.title)}</b><div class="tick">${ICON('check')}</div>${keys(t.keys)}</button>`).join('')}</div>`;
@@ -164,7 +182,9 @@
     if (s.topics) h += `<span class="label">Spørg ind til</span><div class="list">${s.topics.map(t => `<div class="item"><div class="ic">${ICON(t.icon)}</div><b>${esc(t.label)}</b>${keys(t.keys)}</div>`).join('')}</div>`;
     if (s.answers) h += `<span class="label">Det ved du</span><div class="list">${s.answers.map(a => `<div class="item"><div class="ic">${ICON(a.icon)}</div><b>${esc(a.label)}</b>${keys(a.keys)}${a.note ? `<p class="note">${esc(a.note)}</p>` : ''}</div>`).join('')}</div>`;
     if (s.shown) h += shownHtml(s.shown);
-    if (s.evidence) h += `<span class="label">Dine beviser${s.evCount ? ` · ${s.evCount.n} af ${s.evCount.max} fremlagt` : ''}</span><div class="list">${s.evidence.map(e => `<div class="item ${e.played ? 'done' : ''}"><div class="ic">${ICON(e.played ? 'check' : e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}${e.canPlay ? `<button class="btn ${e.played ? '' : 'role'} sm act" data-a="play" data-i="${e.i}">${e.played ? 'Vis igen' : 'Fremlæg'}</button>` : ''}</div>`).join('')}</div>`;
+    if (s.evidence && s.evSteps) h += `<span class="label">Dine beviser</span><div class="list">${s.evidence.map(e => `<div class="item ${e.played ? 'done' : ''} ${e.selected ? 'sel' : ''}"><div class="ic">${ICON(e.played ? 'check' : e.icon)}</div><b>${esc(e.title)}${e.played ? ' <span class="tag">Fremlagt</span>' : ''}</b>${keys(e.keys)}
+      <div class="evbtns">${e.played ? '' : `<button class="btn sm ${e.selected ? 'ok' : ''}" data-a="select" data-i="${e.i}" ${e.canSelect ? '' : 'disabled'}>${e.selected ? '✓ Valgt' : 'Vælg'}</button>`}${e.canPlay ? `<button class="btn ${e.played ? '' : 'role'} sm" data-a="play" data-i="${e.i}">${e.played ? 'Vis igen' : 'Fremlæg'}</button>` : ''}</div></div>`).join('')}</div>`;
+    else if (s.evidence) h += `<span class="label">Dine beviser</span><div class="list">${s.evidence.map(e => `<div class="item"><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}</div>`).join('')}</div>`;
     if (compact) return h;
     if (s.secret) h += `<div class="secret"><span class="label">Det kan forsvareren spørge om</span><p>${esc(s.secret)}</p></div>`;
     if (s.objection) h += `<button class="btn danger objbtn wide" data-a="sheet" data-s="object">${s.shown ? 'Indsigelse mod beviset!' : 'Indsigelse!'} <small>1 tilbage</small></button>`;
@@ -206,7 +226,7 @@
     if (s.script && !(V.screen.extras || []).some(e => e.type === 'verdict' && V.verdict)) h += `<div class="script"><span class="label">${ICON('speech')}Læs højt</span>${paras(s.script)}</div>`;
     if (s.warning && V.beat === 0) h += `<p class="warn">${esc(s.warning)}</p>`;
     if (V.beat > 0 && V.beat < n - 1) h += `<div><span class="label">Hvem har ordet?</span><div class="floor" style="margin-top:6px">${V.seats.map(st => `<button data-a="floor" data-r="${st.role}" aria-pressed="${V.floor === st.role}">${badge(st.role)}<span>${esc(st.name || st.title)}</span></button>`).join('')}</div></div>`;
-    if (V.timer) { const t = timerLeft(); h += `<div class="timerbox"><span class="t ${t <= 10 && V.timer.running ? 'low' : ''}" data-timer>${fmt(t)}</span><span class="grow muted">${V.timer.running ? 'Uret kører' : 'Ur'}</span>
+    if (V.timer) { const t = timerLeft(); h += `<div class="timerbox ${V.timer.running ? 'run' : ''}"><span class="t ${t <= 10 && V.timer.running ? 'low' : ''}" data-timer>${fmt(t)}</span><span class="grow muted">${V.timer.running ? 'Uret kører' : 'Ur'}${s.timerNote ? `<small>${esc(s.timerNote)}</small>` : ''}</span>
       <button class="btn sm ${V.timer.running ? '' : 'ok'}" data-a="timer" data-t="${V.timer.running ? 'pause' : 'start'}">${V.timer.running ? 'Pause' : 'Start'}</button><button class="btn sm ghost" data-a="timer" data-t="reset" aria-label="Nulstil ur">↺</button></div>`; }
     for (const e of s.extras) h += judgeExtra(e, s);
     for (const x of V.alsoPlays || []) if (x.screen.mode !== 'end') h += `<section class="also" data-as="${x.role}"><div class="alsohead">${badge(x.role)}<div><span class="label">Du spiller også</span><h2>${ROLE[x.role].t}</h2></div>${V.floor === x.role ? '<span class="tag">Har ordet</span>' : ''}</div>${playerBody(x.screen, x.role, true)}</section>`;
@@ -302,7 +322,41 @@
 
   function tick() {
     const t = timerLeft(); if (t == null) return;
-    document.querySelectorAll('[data-timer]').forEach(el => { el.textContent = fmt(t); el.classList.toggle('low', t <= 10 && V.timer.running); });
+    const s = V.me && V.me.role !== 'judge' ? V.screen : null, x = timerShown(s);
+    document.querySelectorAll('[data-timer]').forEach(el => { const v = el.closest('[data-tbar]') ? x.t : t; el.textContent = fmt(v); el.classList.toggle('low', v <= 10 && V.timer.running); });
+    document.querySelectorAll('[data-tfill]').forEach(el => { el.style.width = Math.max(0, Math.min(100, 100 * x.t / x.of)) + '%'; el.classList.toggle('low', x.t <= 10); });
+    const ph = phase(s);
+    if (ui.phase !== undefined && ph !== ui.phase && V.timer.running) { buzz(300); knock(1); }
+    if (ui.phase !== ph) { ui.phase = ph; render(); }
+    // Hammerslag, når uret rammer 0.
+    if (V.timer.running && t === 0 && ui.dinged !== V.timer.endsAt) { ui.dinged = V.timer.endsAt; knock(3); buzz([120, 120, 120, 120, 120]); }
+  }
+  /* ---------- lyd: dommerhammer slår i bordet (lavet med Web Audio, ingen lydfil) ---------- */
+  let AC = null;
+  const unlockAudio = () => { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) {} };
+  ['pointerdown', 'touchstart', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, { passive: true }));
+  function knock(n = 3) {
+    if (!AC) return;
+    const at0 = AC.currentTime + 0.02;
+    for (let k = 0; k < n; k++) {
+      const at = at0 + k * 0.42, vol = k === n - 1 ? 1 : 0.8;
+      // dybt bump (træ mod bord)
+      const o = AC.createOscillator(), g = AC.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(150, at); o.frequency.exponentialRampToValueAtTime(55, at + 0.18);
+      g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.9 * vol, at + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.28);
+      o.connect(g).connect(AC.destination); o.start(at); o.stop(at + 0.3);
+      // træ-klang
+      const o2 = AC.createOscillator(), g2 = AC.createGain();
+      o2.type = 'triangle'; o2.frequency.setValueAtTime(420, at); o2.frequency.exponentialRampToValueAtTime(300, at + 0.1);
+      g2.gain.setValueAtTime(0.0001, at); g2.gain.exponentialRampToValueAtTime(0.35 * vol, at + 0.003); g2.gain.exponentialRampToValueAtTime(0.0001, at + 0.12);
+      o2.connect(g2).connect(AC.destination); o2.start(at); o2.stop(at + 0.14);
+      // klik (støj)
+      const len = Math.floor(AC.sampleRate * 0.04), buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+      const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g3 = AC.createGain();
+      src.buffer = buf; f.type = 'bandpass'; f.frequency.value = 1600; f.Q.value = 0.8; g3.gain.value = 0.7 * vol;
+      src.connect(f).connect(g3).connect(AC.destination); src.start(at);
+    }
   }
   setInterval(tick, 500);
 
@@ -337,6 +391,7 @@
       case 'theory': return act('theory', { i, as: asRole(b) });
       case 'persona': return act('persona', { i, as: asRole(b) });
       case 'play': return act('play', { i, as: asRole(b) });
+      case 'select': return act('select', { i, as: asRole(b) });
       case 'secret': ui.secret = !ui.secret; ui.html = ''; return render();
       case 'sheet': ui.sheet = b.dataset.s; return render();
       case 'closeSheet': ui.sheet = null; return render();

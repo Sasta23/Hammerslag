@@ -270,3 +270,31 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .size[aria-pressed="true"] span { color: #e1d8c6; }
 .sizeinfo { font-size: 15px; color: var(--muted); margin-top: -4px; }
 .sizeinfo b { color: var(--text); }
+
+/* stort ur for spillerne */
+.tbar { position: sticky; top: 0; z-index: 5; background: var(--text); color: #f4efe4; border-radius: 6px; padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.15); }
+.tbar .tl { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.tbar .label { color: #e1d8c6; font-family: var(--font-body); font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.tbar .tnum { font-family: var(--font-display); font-size: 48px; line-height: 1; font-variant-numeric: tabular-nums; }
+.tbar .tnum.low { color: #f0a59a; animation: pulse 1s infinite; }
+.tbar .track { height: 8px; border-radius: 99px; background: rgba(255,255,255,.18); overflow: hidden; }
+.tbar .fill { height: 100%; background: #e1d8c6; border-radius: 99px; transition: width .5s linear; }
+.tbar .fill.low { background: #f0a59a; }
+.tbar.paused { opacity: .75; }
+.timerbox .t { font-size: 44px; }
+.timerbox.run { border: 2px solid var(--text); }
+.timerbox small { display: block; font-size: 13px; margin-top: 2px; }
+
+/* bevis: trin 1 vælg, trin 2 fremlæg */
+.evsteps { display: grid; gap: 8px; }
+.evstep { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: 6px; border: 1.5px solid var(--line); background: var(--surface); opacity: .6; }
+.evstep i { font-style: normal; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-display); font-size: 20px; font-weight: 700; background: var(--surface-2); flex: none; }
+.evstep b { display: block; font-family: var(--font-display); font-size: 22px; line-height: 1.15; }
+.evstep span { font-size: 15px; color: var(--muted); }
+.evstep.now { opacity: 1; border: 2px solid var(--role); background: var(--surface); }
+.evstep.now i { background: var(--role); color: var(--role-ink); }
+.evstep.done { opacity: .75; }
+.evstep.done i { background: var(--green); color: #fff; }
+.item.sel { border: 2px solid var(--role); }
+.evbtns { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 8px; }
+.evbtns .btn { flex: 1; }
