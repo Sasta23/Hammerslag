@@ -80,10 +80,19 @@
       <button class="btn primary lg wide" data-a="toCreate">Opret retssag – jeg er dommer</button>
       <button class="btn lg wide" data-a="toJoin">Deltag med kode</button>`;
   }
+  const SIZE_INFO = {
+    4: ['Dommer, anklager, forsvarer og vidne', 'Vidnet bliver afhørt og krydsforhørt.'],
+    3: ['Dommer, anklager og forsvarer', 'Vidnet møder ikke op – dommeren læser hendes forklaring.'],
+    2: ['Dommer og forsvarer', 'Dommeren læser også anklagerens indlæg og beviser op.']
+  };
+  const sizeHtml = (n, a) => `<div class="sizes">${[2, 3, 4].map(k => `<button class="size" data-a="${a}" data-i="${k}" aria-pressed="${n === k}"><b>${k}</b><span>spillere</span></button>`).join('')}</div>
+    <p class="sizeinfo"><b>${SIZE_INFO[n][0]}.</b> ${SIZE_INFO[n][1]}</p>`;
   function createHtml() {
     return `<div class="brand"><h1>Ny retssag</h1><p>Du bliver dommer. Vælg en sag.</p></div>
       ${ui.err ? `<div class="error">${esc(ui.err)}</div>` : ''}
       <div class="card"><div class="field"><label class="label" for="nm">Dit navn</label><input id="nm" maxlength="16" value="${esc(store.get('rs-name') || '')}" autocomplete="off"></div></div>
+      <span class="label">Hvor mange er I?</span>${sizeHtml(ui.size || 4, 'pickSize')}
+      <span class="label">Vælg sag</span>
       <div class="list">${(ui.cases || []).map(c => `<button class="opt" data-a="pickCase" data-i="${c.i}" aria-pressed="${ui.caseIdx === c.i}"><div class="ic">${ICON(c.icon)}</div><b>${esc(c.title)}</b><span>${esc(c.tagline)}</span><div class="tick">${ICON('check')}</div>${c.warning ? `<p class="warn">${esc(c.warning)}</p>` : ''}</button>`).join('')}</div>
       <button class="btn primary lg wide" data-a="create">Opret retssag</button>
       <button class="btn ghost wide" data-a="toHome">Tilbage</button>`;
@@ -104,10 +113,9 @@
     const filled = V.seats.filter(s => s.name).length;
     if (judge) return `<div class="brand" style="padding-top:6px"><span class="label">Sagen</span><h1 style="font-size:30px">${esc(V.case.title)}</h1><p>${esc(V.case.tagline)}</p>${V.case.warning ? `<p class="warn">${esc(V.case.warning)}</p>` : ''}</div>
       <div class="card" style="align-items:center;text-align:center"><span class="label">Scan for at deltage</span><div class="qr" id="qr"></div><span class="label">eller skriv koden</span><div class="codebig">${esc(V.code)}</div></div>
+      <span class="label">Hvor mange er I?</span>${sizeHtml(V.size, 'size')}
       <span class="label">Rollerne</span>${seatsHtml(false)}
-      <button class="btn primary lg wide" data-a="start" ${filled < 3 ? 'disabled' : ''}>${filled < 3 ? `Venter på spillere (${filled}/4)` : filled === 3 ? 'Sæt retten med 3 spillere' : 'Sæt retten'}</button>
-      ${filled === 3 ? `<p class="muted" style="text-align:center">Du spiller selv ${V.seats.filter(x => !x.name).map(x => x.title.toLowerCase()).join(' og ')} – du får stikordene på din skærm.</p>` : ''}
-      ${filled === 2 ? `<button class="btn ghost wide" data-a="start">Start alligevel med 2</button>` : ''}`;
+      <button class="btn primary lg wide" data-a="start" ${filled < V.seats.length ? 'disabled' : ''}>${filled < V.seats.length ? `Venter på spillere (${filled}/${V.seats.length})` : 'Sæt retten'}</button>`;
     if (!V.me.role) return `<div class="brand" style="padding-top:6px"><span class="label">${esc(V.case.title)}</span><h1 style="font-size:32px">Hvem vil du være?</h1><p>Hver rolle kan kun vælges af én.</p></div>${seatsHtml(true)}`;
     return `<div class="brand" style="padding-top:6px"><span class="label">${esc(V.case.title)}</span><h1 style="font-size:32px">Du er ${ROLE[V.me.role].t.toLowerCase()}</h1><p>${esc(V.me.goal)}</p></div>
       <span class="label">Rollerne</span>${seatsHtml(false)}
@@ -310,7 +318,7 @@
       case 'pickCase': ui.caseIdx = i; store.set('rs-name', ($('nm') || {}).value || ''); return render();
       case 'create': {
         const name = $('nm').value.trim(); store.set('rs-name', name);
-        const r = await post('/api/create', { name, caseIdx: ui.caseIdx }); if (r.error) { ui.err = r.error; return render(); }
+        const r = await post('/api/create', { name, caseIdx: ui.caseIdx, size: ui.size || 4 }); if (r.error) { ui.err = r.error; return render(); }
         auth = { room: r.room, token: r.token }; return connect();
       }
       case 'join': {
@@ -318,6 +326,8 @@
         const r = await post('/api/join', { room, name }); if (r.error) { ui.err = r.error; return render(); }
         auth = { room: r.room, token: r.token }; history.replaceState(null, '', `?r=${r.room}`); return connect();
       }
+      case 'pickSize': ui.size = i; store.set('rs-name', ($('nm') || {}).value || ''); return render();
+      case 'size': return act('size', { n: i });
       case 'pickRole': return act('role', { role: b.dataset.r });
       case 'unpick': return act('role', { role: null });
       case 'start': return act('start');

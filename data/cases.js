@@ -29,6 +29,11 @@ module.exports = [
   facts: [['clock', 'Kl. ca. 2', 'Skænderiet'], ['hand', '2 fingre', 'Brækket'], ['scale', '§ 244', 'Vold']],
   timeline: [['Fredag', 'Skænderi – begge går i byen'], ['Natten', 'Kemal ringer – ingen svar'], ['Ca. 01', 'Kemal kommer hjem'], ['Ca. 02', 'Anne kommer hjem – skænderi'], ['Samme nat', 'Anne på skadestuen'], ['Bagefter', 'Anne søger separation']],
   prosecution: {
+    // Bruges ved 2 spillere: dommeren læser anklagerens indlæg op.
+    script: {
+      opening: ['Ærede dommer. Natten til lørdag slog Kemal sin kone Anne i brystet, så hun faldt.', 'Mens hun lå ned, sparkede han hende flere gange. Hun holdt hænderne op for at beskytte sig – og fik to brækkede fingre.', 'Anklagemyndigheden vil bevise, at Kemal er skyldig i vold efter § 244.'],
+      closing: ['Ærede dommer. Anne har forklaret klart og ens hele vejen.', 'Skaderne passer med det, hun fortæller: blå mærker på bryst og ryg og to brækkede fingre.', 'Jalousi og et dårligt ægteskab giver ingen ret til at slå. Kemal bør findes skyldig.']
+    },
     theories: [
       { title: 'Grov vold mod sin kone', keys: ['Slag i brystet', 'Spark i ryggen', 'Slag i baghovedet', '2 brækkede fingre'],
         starter: 'Kemal slog og sparkede Anne', closeKeys: ['Hun lå ned', 'Gentagne spark', 'Brækkede fingre', 'Skyldig'], closeStarter: 'Hun lå ned, da han' },
@@ -68,6 +73,8 @@ module.exports = [
   },
   witness: {
     name: 'Anne', about: 'Kemals kone og den forurettede',
+    // Bruges ved 2–3 spillere: vidnet møder ikke op, så retten læser hendes forklaring til politiet op.
+    statement: ['Jeg kom hjem lidt før klokken to. Kemal var vågen og meget vred, fordi jeg ikke havde taget telefonen.', 'Vi råbte begge to. Så slog han mig i brystet, så jeg faldt. Mens jeg lå ned, sparkede han mig flere gange i ryggen.', 'Jeg holdt hænderne op for at beskytte mig, og han ramte dem. Han slog mig også i baghovedet.', 'Da jeg kom på benene, løb jeg ud. Samme nat tog jeg på skadestuen.'],
     keys: ['Han slog mig', 'Jeg faldt', 'Han sparkede', 'Jeg løb væk'], starter: 'Han slog mig i brystet',
     pressure: 'Forsvareren vil spørge, hvor du var, og hvorfor du ikke svarede. I beskyldte begge hinanden for utroskab. Det ændrer ikke på, hvad han gjorde.',
     personas: [
@@ -116,6 +123,10 @@ module.exports = [
   facts: [['clock', 'Kl. ca. 2', 'På værelset'], ['speech', '»Nej«', 'Ifølge Janni'], ['scale', '§ 216', 'Voldtægt']],
   timeline: [['Fredag', 'Firmakursus, middag og dans'], ['Ca. 02', 'Baren er lukket – et knus'], ['Ca. 02', 'Øl på Mustafas værelse'], ['Senere', 'Samlejet'], ['Lørdag', 'Janni ringer til sin søster'], ['Lørdag', 'Undersøgt på voldtægtscenteret'], ['Onsdag', 'Anmeldelse til politiet']],
   prosecution: {
+    script: {
+      opening: ['Ærede dommer. Janni sagde ja til en øl – ikke til sex.', 'Hun sagde nej, skubbede ham væk og bad ham lade hende gå. Alligevel holdt Mustafa hende fast og gennemførte samlejet.', 'Anklagemyndigheden vil bevise, at Mustafa er skyldig i voldtægt efter § 216.'],
+      closing: ['Ærede dommer. Et knus, en dans og en øl er ikke et ja.', 'Janni viste tydeligt, at hun ikke ville. Hun fortalte det til sin søster samme morgen og blev undersøgt samme dag.', 'Mustafa vidste, at hun ikke ville. Han bør findes skyldig.']
+    },
     theories: [
       { title: 'Hun sagde nej', keys: ['Afviste kysset', 'Skubbede ham væk', '»Lad mig gå«', 'Holdt hende fast'],
         starter: 'Janni sagde nej flere gange', closeKeys: ['Nej er nej', 'Holdt fast', 'Klart signal', 'Skyldig'], closeStarter: 'Et nej er et nej' },
@@ -155,6 +166,7 @@ module.exports = [
   },
   witness: {
     name: 'Janni', about: 'kollega og den forurettede',
+    statement: ['Vi havde danset, og jeg sagde ja til en øl på hans værelse. Jeg havde ikke tænkt mig mere end det.', 'Han begyndte at kysse mig. Jeg sagde, at det gad jeg ikke, og skubbede hans hænder væk.', 'Jeg rejste mig og sagde: »Lad mig gå.« Han trak mig hen til sengen og holdt mig fast.', 'Bagefter løb jeg ud. Tidligt om morgenen ringede jeg til min søster.'],
     keys: ['Han kyssede mig', 'Jeg sagde nej', 'Skubbede ham væk', 'Han holdt mig fast'], starter: 'Jeg sagde, at jeg ikke',
     pressure: 'Forsvareren vil spørge til dansen, knuset, ølen og hvorfor du ventede fire dage. Intet af det er det samme som at sige ja.',
     personas: [

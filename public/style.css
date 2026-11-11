@@ -260,3 +260,13 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .alsohead .tag { margin-left: auto; }
 .alsohead .badge { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: #fff; flex: none; }
 .alsohead .badge .i { width: 22px; height: 22px; }
+
+/* antal spillere */
+.sizes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.size { display: flex; flex-direction: column; align-items: center; padding: 10px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.size b { font-family: var(--font-display); font-size: 30px; line-height: 1.1; }
+.size span { font-size: 13px; color: var(--muted); }
+.size[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: #f4efe4; }
+.size[aria-pressed="true"] span { color: #e1d8c6; }
+.sizeinfo { font-size: 15px; color: var(--muted); margin-top: -4px; }
+.sizeinfo b { color: var(--text); }
