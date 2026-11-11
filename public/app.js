@@ -145,7 +145,8 @@
   }
   // Statuslinjen samler »hvem taler« og »hvad skal du nu« i én boks.
   function statusHtml() {
-    const s = V.screen, c = s.cue || {};
+    const s = V.screen;
+    const c = s.evSteps ? { ...s.cue, title: evTwo(s) ? 'Fremlæg dine beviser' : 'Vælg dine beviser' } : (s.cue || {});
     const who = V.floorName ? `${esc(V.floorName)} taler` : 'Vent på dommeren';
     const box = (cls, icon, label, title) => `<div class="status ${cls}"><div class="ic">${ICON(icon)}</div><div><span class="label">${label}</span><h2>${esc(title)}</h2>${c.sub ? `<p class="ssub">${esc(c.sub)}</p>` : ''}</div></div>`;
     if (s.mode === 'speak') return box('speak enter', c.icon || 'mic', '<span class="pulse"></span>Din tur', c.title || 'Du har ordet');
@@ -169,6 +170,30 @@
     if (!head && !body.trim()) return '';
     return `<section class="cue enter">${head ? `<div class="head"><div class="ic">${ICON(c.icon)}</div><div><h2>${esc(c.title)}</h2>${c.sub ? `<p class="sub">${esc(c.sub)}</p>` : ''}</div></div>` : ''}${body}</section>`;
   }
+  // Bevisfasen i to tydelige trin: 1) vælg 2 beviser  2) fremlæg dem.
+  const evTwo = s => phase(s) === 2 || s.evSteps.picked >= s.evSteps.max;
+  function evFlow(s) {
+    const st = s.evSteps, two = evTwo(s), c = s.cue || {};
+    const card = (e, act) => `<button class="evpick ${e.selected ? 'on' : ''}" data-a="${act}" data-i="${e.i}" ${act === 'select' && !e.canSelect ? 'disabled' : ''}>
+      <div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}<span class="mark">${e.selected ? ICON('check') : ''}</span></button>`;
+    let h = `<div class="stepper"><span class="${two ? 'done' : 'now'}"><i>${two ? '✓' : '1'}</i>Vælg</span><em></em><span class="${two ? 'now' : ''}"><i>2</i>Fremlæg</span></div>`;
+    if (!two) {
+      h += `<section class="evphase"><div class="evtitle"><div><span class="label">Trin 1 · 30 sekunder</span><h2>Vælg ${st.max} beviser</h2></div><div class="count"><b>${st.picked}</b>/${st.max}</div></div>
+        <p class="muted">Tryk på de ${st.max} beviser, du vil bruge.</p>
+        <div class="evgrid">${s.evidence.map(e => card(e, 'select')).join('')}</div></section>`;
+      return h;
+    }
+    const chosen = s.evidence.filter(e => e.selected), rest = s.evidence.filter(e => !e.selected && e.canSelect);
+    h += `<section class="evphase"><div class="evtitle"><div><span class="label">Trin 2 · 1 minut</span><h2>Fremlæg og forklar</h2></div></div>
+      ${c.starter ? say('Start med', c.starter) : ''}
+      <span class="label">Dine valgte beviser</span>
+      <div class="list">${chosen.map(e => `<div class="evchosen ${e.played ? 'done' : ''}"><div class="ic">${ICON(e.played ? 'check' : e.icon)}</div><div class="grow"><b>${esc(e.title)}</b>${keys(e.keys)}</div>
+        ${e.canPlay ? `<button class="btn ${e.played ? 'sm' : 'role'}" data-a="play" data-i="${e.i}">${e.played ? 'Vis igen' : 'Fremlæg'}</button>` : `<span class="tag">${e.played ? 'Fremlagt' : 'Vent'}</span>`}</div>`).join('') || '<p class="muted">Du har ikke valgt nogen beviser.</p>'}</div>
+      ${c.end ? say('Slut med', c.end) : ''}
+      ${rest.length && chosen.length < st.max ? `<details class="more"><summary>Vælg ${st.max - chosen.length} mere</summary><div class="evgrid">${rest.map(e => card(e, 'select')).join('')}</div></details>` : ''}
+    </section>`;
+    return h;
+  }
   // Beviser vises som »sagsmapper« – tydeligt adskilt fra det, man skal sige.
   const evChips = (label, list) => `<div class="evstrip"><span class="label">${ICON('folder')}${label}</span><div class="evchips">${list.map(e => `<div class="evchip">${ICON(e.icon)}<span>${esc(e.title)}</span></div>`).join('')}</div></div>`;
   function playerHtml() {
@@ -183,13 +208,9 @@
     if (compact && s.showRoles) s = { ...s, showRoles: false, facts: null };
     if (s.facts) extra += `<div class="facts">${s.facts.map(([i, b, t]) => `<div class="fact">${ICON(i)}<b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('')}</div>`;
     if (s.twist) extra += `<div class="fact" style="flex-direction:row;gap:12px;align-items:flex-start">${ICON(s.twist.icon)}<div><b>${esc(s.twist.title)}</b><p style="font-size:14px;margin-top:4px">${esc(s.twist.text)}</p></div></div>`;
-    if (s.evSteps) {
-      const st = s.evSteps, ph = phase(s), two = ph === 2 || st.picked >= st.max;
-      h += `<div class="evsteps"><div class="evstep ${two ? 'done' : 'now'}"><i>${two ? '✓' : '1'}</i><div><b>Vælg ${st.max} beviser</b><span>30 sekunder · ${st.picked} af ${st.max} valgt</span></div></div>
-        <div class="evstep ${two ? 'now' : ''}"><i>2</i><div><b>Fremlæg dem</b><span>1 minut · tryk »Fremlæg« og forklar</span></div></div></div>`;
-    }
-    h += cueHtml(s.cue, extra, compact, s.mode);
-    if (s.used && s.used.length) h += evChips('Nævn dine beviser', s.used);
+    if (s.evSteps) h += evFlow(s);
+    else h += cueHtml(s.cue, extra, compact, s.mode);
+    if (s.used && s.used.length) h += evChips('Dine fremlagte beviser – nævn dem', s.used);
     if (s.showRoles) h += `<span class="label">I retten i dag</span>${seatsHtml(false)}`;
     if (s.theories) h += `<span class="label">${esc(s.theoryHint || 'Vælg én teori')}</span><div class="list">${s.theories.map(t => `<button class="opt" data-a="theory" data-i="${t.i}" aria-pressed="${t.picked}"><div class="ic">${ICON(me === 'prosecutor' ? 'scale' : 'shield')}</div><b>${esc(t.title)}</b><div class="tick">${ICON('check')}</div>${keys(t.keys, 'say')}</button>`).join('')}</div>`;
     if (s.preview) h += `<span class="label">Dine beviser</span><div class="list">${s.preview.map(e => `<div class="item doc"><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}</div>`).join('')}</div>`;
@@ -197,10 +218,8 @@
     if (s.saw) h += `<span class="label">Det fortæller du</span><div class="card">${keys(s.saw, 'say')}</div>`;
     if (s.topics) h += `<span class="label">Spørg ind til</span><div class="list">${s.topics.map(t => `<div class="item"><div class="ic">${ICON(t.icon)}</div><b>${esc(t.label)}</b>${keys(t.keys, 'say')}</div>`).join('')}</div>`;
     if (s.answers) h += `<span class="label">Det ved du</span><div class="list">${s.answers.map(a => `<div class="item"><div class="ic">${ICON(a.icon)}</div><b>${esc(a.label)}</b>${keys(a.keys, 'say')}${a.note ? `<p class="note">${esc(a.note)}</p>` : ''}</div>`).join('')}</div>`;
-    if (s.shown) h += shownHtml(s.shown);
-    if (s.evidence && s.evSteps) h += `<span class="label">Dine beviser</span><div class="list">${s.evidence.map(e => `<div class="item doc ${e.played ? 'done' : ''} ${e.selected ? 'sel' : ''}"><div class="ic">${ICON(e.played ? 'check' : e.icon)}</div><b>${esc(e.title)}${e.played ? ' <span class="tag">Fremlagt</span>' : ''}</b>${keys(e.keys)}
-      <div class="evbtns">${e.played ? '' : `<button class="btn sm ${e.selected ? 'ok' : ''}" data-a="select" data-i="${e.i}" ${e.canSelect ? '' : 'disabled'}>${e.selected ? '✓ Valgt' : 'Vælg'}</button>`}${e.canPlay ? `<button class="btn ${e.played ? '' : 'role'} sm" data-a="play" data-i="${e.i}">${e.played ? 'Vis igen' : 'Fremlæg'}</button>` : ''}</div></div>`).join('')}</div>`;
-    else if (s.evidence) h += `<span class="label">Dine beviser</span><div class="list">${s.evidence.map(e => `<div class="item doc"><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}</div>`).join('')}</div>`;
+    if (s.shown) h += shownHtml(s.shown, s.shownBy);
+    if (s.evidence && !s.evSteps) h += `<span class="label">Dine beviser</span><div class="list">${s.evidence.map(e => `<div class="item doc"><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}</div>`).join('')}</div>`;
     if (compact) return h;
     if (s.secret) h += `<div class="secret"><span class="label">Det kan forsvareren spørge om</span><p>${esc(s.secret)}</p></div>`;
     if (s.objection) h += `<button class="btn danger objbtn wide" data-a="sheet" data-s="object">${s.shown ? 'Indsigelse mod beviset!' : 'Indsigelse!'} <small>1 tilbage</small></button>`;
@@ -218,7 +237,7 @@
   const truthHtml = t => `<section class="cue enter"><div class="head"><div class="ic">${ICON('spark')}</div><div><span class="label">Den rigtige sag</span><h2>${esc(t.title)}</h2></div></div><p>${esc(t.text)}</p><div class="starter"><small>Bagefter</small>${esc(t.epilogue)}</div></section>`;
 
   const objTag = o => o ? `<span class="tag ${o.status}">${o.status === 'pending' ? 'Indsigelse – venter' : o.status === 'accepted' ? 'Indsigelse taget til følge' : 'Indsigelse afvist'}</span>` : '';
-  const shownHtml = items => `<span class="label">Fremlagt</span>${items.length ? `<div class="list">${items.map(e => `<div class="item doc"><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)} ${objTag(e.objection)}</b>${keys(e.keys)}</div>`).join('')}</div>` : '<p class="muted">Intet bevis fremlagt endnu.</p>'}`;
+  const shownHtml = (items, by) => `<span class="label tagged" style="--c:${ROLE[by] ? ROLE[by].c : '#3f5446'}">${ROLE[by] ? ICON(ROLE[by].i) : ''}${by === 'prosecutor' ? 'Anklagerens' : 'Forsvarerens'} fremlagte beviser</span>${items.length ? `<div class="list">${items.map(e => `<div class="item doc"><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)} ${objTag(e.objection)}</b>${keys(e.keys)}</div>`).join('')}</div>` : '<p class="muted">Intet bevis fremlagt endnu.</p>'}`;
   function presentedHtml(p) {
     const notes = store.get('rs-notes-' + V.code) || {};
     const who = p.side === 'prosecutor' ? 'Anklageren' : 'Forsvareren';
@@ -228,6 +247,15 @@
     return `<section class="presented"><span class="label">${ICON('folder')}${who} har fremlagt</span>
       ${cards || `<p class="muted">Venter på, at ${who.toLowerCase()} fremlægger et bevis …</p>`}
       ${p.items.length < 2 && p.left.length ? `<p class="muted small">Kan stadig fremlægges: ${p.left.map(esc).join(' · ')}</p>` : ''}</section>`;
+  }
+  // Dommerens ur: samme plads før og efter start. Ikke startet = stor rød knap.
+  function clockHtml(s) {
+    const T = V.timer, t = timerLeft(), fresh = !T.running && T.left === T.secs;
+    if (fresh) return `<button class="clock start" data-a="timer" data-t="start">${ICON('clock')}<div><span>Tryk for at starte uret</span><b>${fmt(T.secs)}</b></div>${s.timerNote ? `<small>${esc(s.timerNote)}</small>` : ''}</button>`;
+    return `<div class="clock ${T.running ? 'run' : 'paused'}"><div class="face"><span class="dot"></span><b data-timer class="${t <= 10 && T.running ? 'low' : ''}">${fmt(t)}</b><span class="state">${T.running ? 'Uret kører' : 'Pause'}</span></div>
+      <div class="track"><div class="fill" data-tfill style="width:${100 * t / T.secs}%"></div></div>
+      ${s.timerNote ? `<small>${esc(s.timerNote)}</small>` : ''}
+      <div class="row"><button class="btn sm ${T.running ? '' : 'ok'}" data-a="timer" data-t="${T.running ? 'pause' : 'start'}">${T.running ? 'Pause' : 'Fortsæt'}</button><button class="btn sm ghost" data-a="timer" data-t="reset">↺ Nulstil</button></div></div>`;
   }
   const paras = t => (Array.isArray(t) ? t : [t]).map(x => `<p>${esc(x)}</p>`).join('');
   /* ---------- dommeren ---------- */
@@ -239,13 +267,11 @@
       <div class="row"><button class="btn ok" data-a="rule" data-ok="1">Taget til følge</button><button class="btn" data-a="rule" data-ok="0">Afvist</button></div></div>`;
     h += `<div><span class="label">Nu</span><h1 style="font-size:28px;margin-top:4px">${esc(s.now)}</h1><p class="muted" style="margin-top:6px">${esc(s.hint)}</p></div>`;
     if (V.turn && V.turn.n > 1) h += `<div class="turns">${V.turn.labels.map((l, i) => `<span class="${i < V.turn.i ? 'done' : i === V.turn.i ? 'now' : ''}">${i < V.turn.i ? '✓ ' : ''}${esc(l)}</span>`).join('<i>→</i>')}</div>`;
-    if (V.timer && !V.timer.running && V.timer.left === V.timer.secs) h += `<button class="btn startclock wide" data-a="timer" data-t="start">${ICON('clock')}<span>Start uret</span><b>${fmt(V.timer.secs)}</b></button>`;
+    if (V.timer) h += clockHtml(s);
     if (s.presented) h += presentedHtml(s.presented);
     if (s.script && !(V.screen.extras || []).some(e => e.type === 'verdict' && V.verdict)) h += `<div class="script"><span class="label">${ICON('speech')}Læs højt</span>${paras(s.script)}</div>`;
     if (s.warning && V.beat === 0) h += `<p class="warn">${esc(s.warning)}</p>`;
     if (V.beat > 0 && V.beat < n - 1) h += `<div><span class="label">Hvem har ordet?</span><div class="floor" style="margin-top:6px">${V.seats.map(st => `<button data-a="floor" data-r="${st.role}" aria-pressed="${V.floor === st.role}">${badge(st.role)}<span>${esc(st.name || st.title)}</span></button>`).join('')}</div></div>`;
-    if (V.timer) { const t = timerLeft(); h += `<div class="timerbox ${V.timer.running ? 'run' : ''}"><span class="t ${t <= 10 && V.timer.running ? 'low' : ''}" data-timer>${fmt(t)}</span><span class="grow muted">${V.timer.running ? 'Uret kører' : 'Ur'}${s.timerNote ? `<small>${esc(s.timerNote)}</small>` : ''}</span>
-      <button class="btn sm ${V.timer.running ? '' : 'ok'}" data-a="timer" data-t="${V.timer.running ? 'pause' : 'start'}">${V.timer.running ? 'Pause' : 'Start'}</button><button class="btn sm ghost" data-a="timer" data-t="reset" aria-label="Nulstil ur">↺</button></div>`; }
     for (const e of s.extras) h += judgeExtra(e, s);
     for (const x of V.alsoPlays || []) if (x.screen.mode !== 'end') h += `<section class="also" data-as="${x.role}"><div class="alsohead">${badge(x.role)}<div><span class="label">Du spiller også</span><h2>${ROLE[x.role].t}</h2></div>${V.floor === x.role ? '<span class="tag">Har ordet</span>' : ''}</div>${playerBody(x.screen, x.role, true)}</section>`;
     return h;
@@ -330,7 +356,7 @@
   /* ---------- reaktioner på ændringer ---------- */
   function react(v) {
     if (!V || v.phase !== 'game') { last = { played: v.lastPlayed ? v.lastPlayed.n : 0, obj: v.objection ? v.objection.id : 0, floor: v.floor, beat: v.beat }; return; }
-    if (v.lastPlayed && v.lastPlayed.n !== last.played) { flash({ icon: v.lastPlayed.icon, label: `${v.lastPlayed.byTitle} fremlægger`, title: v.lastPlayed.title, keysList: v.lastPlayed.keys }); }
+    if (v.lastPlayed && v.lastPlayed.n !== last.played) { flash({ icon: v.lastPlayed.icon, label: `${v.lastPlayed.byTitle === 'Anklager' ? 'Anklagerens' : 'Forsvarerens'} bevis`, title: v.lastPlayed.title, keysList: v.lastPlayed.keys }); }
     if (v.objection && v.objection.id !== last.obj) {
       const o = v.objection;
       if (o.status === 'pending') { flash({ cls: 'obj', icon: 'hand', label: `Indsigelse · ${o.byTitle}`, title: o.type }); if (v.me.role === 'judge') buzz([200, 80, 200]); }

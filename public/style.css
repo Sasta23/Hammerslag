@@ -348,3 +348,61 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .startclock .i { width: 26px; height: 26px; }
 .startclock b { font-family: var(--font-display); font-size: 28px; font-weight: 600; }
 @keyframes glow { 50% { box-shadow: 0 0 0 6px rgba(122,43,43,.25); } }
+
+/* dommerens ur – én blok, samme plads */
+.clock { display: flex; flex-direction: column; gap: 10px; width: 100%; min-height: 128px; padding: 16px 18px; border-radius: 8px; text-align: left; }
+.clock.start { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 14px; background: var(--wine); color: #fff; border: none; animation: glow 1.4s infinite; cursor: pointer; }
+.clock.start > .i { width: 40px; height: 40px; }
+.clock.start span { display: block; font-size: 15px; font-weight: 600; opacity: .9; }
+.clock.start b { font-family: var(--font-display); font-size: 46px; line-height: 1; }
+.clock.start small { width: 100%; opacity: .85; font-size: 13px; }
+.clock.run, .clock.paused { background: var(--text); color: #f4efe4; }
+.clock.paused { opacity: .85; }
+.clock .face { display: flex; align-items: center; gap: 10px; }
+.clock .face b { font-family: var(--font-display); font-size: 52px; line-height: 1; font-variant-numeric: tabular-nums; }
+.clock .face b.low { color: #f0a59a; }
+.clock .face .state { margin-left: auto; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
+.clock .dot { width: 12px; height: 12px; border-radius: 50%; background: #e1d8c6; }
+.clock.run .dot { background: #f0a59a; animation: pulse 1s infinite; }
+.clock .track { height: 10px; border-radius: 99px; background: rgba(255,255,255,.18); overflow: hidden; }
+.clock .fill { height: 100%; background: #e1d8c6; border-radius: 99px; transition: width 1s linear; }
+.clock .fill.low { background: #f0a59a; }
+.clock small { font-size: 13px; opacity: .8; }
+.clock .row { display: flex; gap: 8px; }
+.clock .row .btn { flex: 1; background: rgba(255,255,255,.1); color: #f4efe4; border-color: rgba(255,255,255,.3); }
+.clock .row .btn.ok { background: #e1d8c6; color: var(--text); }
+
+/* bevisfasen for den, der fremlægger */
+.stepper { display: flex; align-items: center; gap: 8px; }
+.stepper span { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; color: var(--muted); }
+.stepper span i { font-style: normal; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); font-size: 14px; }
+.stepper span.now { color: var(--text); }
+.stepper span.now i { background: var(--role); color: var(--role-ink); }
+.stepper span.done i { background: var(--green); color: #fff; }
+.stepper em { flex: 1; height: 2px; background: var(--line); }
+.evphase { display: flex; flex-direction: column; gap: 12px; background: var(--surface); border: 1.5px solid var(--text); outline: 1px solid var(--text); outline-offset: -7px; border-radius: 4px; padding: 20px; }
+.evtitle { display: flex; align-items: center; gap: 10px; }
+.evtitle > div:first-child { flex: 1; }
+.evtitle h2 { font-size: 26px; }
+.evtitle .count { font-family: var(--font-display); font-size: 22px; color: var(--muted); }
+.evtitle .count b { font-size: 40px; color: var(--role); }
+.evgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.evpick { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; padding: 12px; background: #efe8d8; border: 1.5px solid var(--taupe); border-radius: 2px 12px 2px 2px; box-shadow: 2px 2px 0 var(--line); }
+.evpick .ic { width: 36px; height: 36px; border-radius: 50%; background: #fff; display: grid; place-items: center; color: var(--green); }
+.evpick b { font-family: var(--font-display); font-size: 17px; line-height: 1.2; }
+.evpick .keys .k { font-size: 12px; padding: 3px 7px; background: transparent; border-style: dashed; }
+.evpick .mark { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--taupe); display: grid; place-items: center; background: #fff; }
+.evpick.on { border: 2.5px solid var(--role); background: #fff; }
+.evpick.on .mark { background: var(--role); border-color: var(--role); color: var(--role-ink); }
+.evpick.on .mark .i { width: 16px; height: 16px; }
+.evpick:disabled { opacity: .4; }
+.evchosen { display: flex; align-items: center; gap: 12px; padding: 12px; background: #efe8d8; border: 1.5px solid var(--taupe); border-radius: 2px 12px 2px 2px; box-shadow: 2px 2px 0 var(--line); }
+.evchosen .ic { width: 40px; height: 40px; border-radius: 50%; background: #fff; display: grid; place-items: center; color: var(--green); flex: none; }
+.evchosen .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.evchosen b { font-family: var(--font-display); font-size: 19px; }
+.evchosen .keys .k { font-size: 12px; padding: 3px 7px; background: transparent; border-style: dashed; }
+.evchosen.done { opacity: .75; }
+.evchosen.done .ic { background: var(--green); color: #fff; }
+.more summary { cursor: pointer; font-weight: 600; color: var(--muted); padding: 6px 0; }
+.label.tagged { display: inline-flex; align-items: center; gap: 6px; background: var(--c); color: #fff; }
+.label.tagged .i { width: 14px; height: 14px; }

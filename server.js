@@ -202,14 +202,14 @@ function playerScreen(r, role) {
       const speaker = b.id === 'aab_p' ? 'prosecutor' : 'defense';
       if (role === speaker) {
         if (!th) { s.mode = 'private'; s.cue = { icon: 'scale', title: 'Vælg din teori først', sub: 'Så får du dine stikord.' }; s.theories = theoryChoice(); break; }
-        speak('Din åbningstale', 'mic', th.keys, th.starter);
+        speak('Din åbningstale', 'mic', th.keys, th.starter); s.cue.end = role === 'prosecutor' ? 'Det vil vi bevise i dag.' : 'Ved tvivl skal man frifinde.';
         s.theoryTitle = th.title; if (!mine) s.mode = 'ready';
       } else if (lawyer) listen('Lyt efter huller', role === 'prosecutor' ? ['Undskyldninger', 'Hvad kan du modbevise?', 'Husk til dit sidste ord'] : ['Hvad påstår de?', 'Hvad mangler bevis?', 'Husk til krydsforhøret']);
       else listen('Øv dit vidneudsagn', w.keys, 'eye');
       break;
     }
     case 'vidne':
-      if (role === 'witness') { speak('Fortæl, hvad der skete', 'eye', w.keys, w.starter, r.persona != null ? `Husk: Du er ${w.personas[r.persona].t.toLowerCase()}.` : null); if (!mine) s.mode = 'ready'; }
+      if (role === 'witness') { speak('Fortæl, hvad der skete', 'eye', w.keys, w.starter, r.persona != null ? `Husk: Du er ${w.personas[r.persona].t.toLowerCase()}.` : null); s.cue.end = 'Det er det, jeg husker.'; if (!mine) s.mode = 'ready'; }
       else listen('Lyt til vidnet', ['Hvad siger hun præcist?', 'Hvad er usikkert?', 'Hvad kan du spørge om?'], 'ear');
       break;
     case 'fh_p': case 'fh_d': {
@@ -218,7 +218,7 @@ function playerScreen(r, role) {
       const answers = w.answers[asker === 'prosecutor' ? 'prosecution' : 'defense'];
       if (role === asker) {
         s.mode = mine ? 'speak' : 'listen';
-        s.cue = { icon: 'mic', title: asker === 'prosecutor' ? 'Spørg vidnet' : 'Krydsforhør vidnet', sub: asker === 'prosecutor' ? `Få ${w.name} til at sige noget, der skader ${c.accused.short}.` : `Find huller i ${w.name}s historie.`, starter: 'Kan De fortælle retten, hvad …', tip: 'Spørg kort. Ét spørgsmål ad gangen.' };
+        s.cue = { icon: 'mic', title: asker === 'prosecutor' ? 'Spørg vidnet' : 'Krydsforhør vidnet', sub: asker === 'prosecutor' ? `Få ${w.name} til at sige noget, der skader ${c.accused.short}.` : `Find huller i ${w.name}s historie.`, starter: 'Kan De fortælle retten, hvad …', tip: 'Ét spørgsmål ad gangen.', end: 'Tak. Ingen flere spørgsmål.' };
         s.topics = topics.map((t, i) => ({ icon: t.icon, label: t.label, keys: t.keys }));
       } else if (role === 'witness') {
         s.mode = 'answer';
@@ -241,7 +241,7 @@ function playerScreen(r, role) {
       if (role === presenter) {
         const played = i => r.played.some(x => x.role === role && x.i === i), sel = r.sel[role] || [];
         s.mode = mine ? 'speak' : 'ready';
-        s.cue = { icon: 'folder', title: 'Dine beviser', starter: 'Ærede dommer, beviset viser …' };
+        s.cue = { icon: 'folder', title: 'Dine beviser', starter: 'Ærede dommer, beviset viser …', end: role === 'prosecutor' ? 'Det beviser hans skyld.' : 'Det skaber rimelig tvivl.' };
         s.evSteps = { picked: sel.length, max: MAX_EVIDENCE, shown: items.length };
         s.split = { at: 60, first: 'Vælg dine beviser', second: 'Fremlæg dine beviser' };
         s.evidence = side.evidence.map((e, i) => ({ i, ...e, played: played(i), selected: sel.includes(i), canSelect: !played(i) && (sel.includes(i) || sel.length < MAX_EVIDENCE), canPlay: mine && sel.includes(i) }));
@@ -249,8 +249,8 @@ function playerScreen(r, role) {
       } else if (lawyer) {
         listen(`${ROLES[presenter].title}en fremlægger`, ['Hvad viser det IKKE?', 'Anden forklaring?'], 'folder');
         s.cue.sub = 'Én indsigelse pr. bevis.'; s.cue.starter = 'Det beviser intet, fordi …';
-        s.shown = items;
-      } else { listen('Lyt til beviserne', ['Lyt roligt', 'Dommeren kan spørge dig'], 'ear'); s.shown = items; }
+        s.shown = items; s.shownBy = presenter;
+      } else { listen('Lyt til beviserne', ['Lyt roligt', 'Dommeren kan spørge dig'], 'ear'); s.shown = items; s.shownBy = presenter; }
       break;
     }
     case 'twist':
