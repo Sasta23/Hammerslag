@@ -17,6 +17,7 @@
 
   /* ---------- netværk ---------- */
   async function post(url, data) { return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()).catch(() => ({ error: 'Ingen forbindelse. Er du på samme Wi-Fi som computeren?' })); }
+  const asRole = b => { const x = b.closest('[data-as]'); return x ? x.dataset.as : undefined; };
   async function act(type, data) { const r = await post('/api/action', { room: auth.room, token: auth.token, type, data }); if (r.error) flash({ cls: 'obj', icon: 'x', label: 'Hov', title: r.error }); }
   function connect() {
     if (es) es.close();
@@ -104,8 +105,9 @@
     if (judge) return `<div class="brand" style="padding-top:6px"><span class="label">Sagen</span><h1 style="font-size:30px">${esc(V.case.title)}</h1><p>${esc(V.case.tagline)}</p>${V.case.warning ? `<p class="warn">${esc(V.case.warning)}</p>` : ''}</div>
       <div class="card" style="align-items:center;text-align:center"><span class="label">Scan for at deltage</span><div class="qr" id="qr"></div><span class="label">eller skriv koden</span><div class="codebig">${esc(V.code)}</div></div>
       <span class="label">Rollerne</span>${seatsHtml(false)}
-      <button class="btn primary lg wide" data-a="start" ${filled < 4 ? 'disabled' : ''}>${filled < 4 ? `Venter på spillere (${filled}/4)` : 'Sæt retten'}</button>
-      ${filled < 4 && filled > 1 ? `<button class="btn ghost wide" data-a="start">Start uden alle roller</button>` : ''}`;
+      <button class="btn primary lg wide" data-a="start" ${filled < 3 ? 'disabled' : ''}>${filled < 3 ? `Venter på spillere (${filled}/4)` : filled === 3 ? 'Sæt retten med 3 spillere' : 'Sæt retten'}</button>
+      ${filled === 3 ? `<p class="muted" style="text-align:center">Du spiller selv ${V.seats.filter(x => !x.name).map(x => x.title.toLowerCase()).join(' og ')} – du får stikordene på din skærm.</p>` : ''}
+      ${filled === 2 ? `<button class="btn ghost wide" data-a="start">Start alligevel med 2</button>` : ''}`;
     if (!V.me.role) return `<div class="brand" style="padding-top:6px"><span class="label">${esc(V.case.title)}</span><h1 style="font-size:32px">Hvem vil du være?</h1><p>Hver rolle kan kun vælges af én.</p></div>${seatsHtml(true)}`;
     return `<div class="brand" style="padding-top:6px"><span class="label">${esc(V.case.title)}</span><h1 style="font-size:32px">Du er ${ROLE[V.me.role].t.toLowerCase()}</h1><p>${esc(V.me.goal)}</p></div>
       <span class="label">Rollerne</span>${seatsHtml(false)}
@@ -137,7 +139,11 @@
     let h = `<header class="top"><div class="badge">${ICON(ROLE[me].i)}</div><div><b>${esc(V.me.name)} · ${ROLE[me].t}</b><span>${esc(V.case.title)}</span></div><button class="btn sm" data-a="sheet" data-s="role">Min rolle</button></header>`;
     h += statusHtml();
     if (s.mode === 'end') return h + endHtml(s);
-    let extra = '';
+    return h + playerBody(s, me);
+  }
+  function playerBody(s, me, compact) {
+    let h = '', extra = '';
+    if (compact && s.showRoles) s = { ...s, showRoles: false, facts: null };
     if (s.facts) extra += `<div class="facts">${s.facts.map(([i, b, t]) => `<div class="fact">${ICON(i)}<b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('')}</div>`;
     if (s.twist) extra += `<div class="fact" style="flex-direction:row;gap:12px;align-items:flex-start">${ICON(s.twist.icon)}<div><b>${esc(s.twist.title)}</b><p style="font-size:14px;margin-top:4px">${esc(s.twist.text)}</p></div></div>`;
     if (s.used && s.used.length) extra += `<div><span class="label">Nævn dine beviser</span>${keys(s.used)}</div>`;
@@ -151,6 +157,7 @@
     if (s.answers) h += `<span class="label">Det ved du</span><div class="list">${s.answers.map(a => `<div class="item"><div class="ic">${ICON(a.icon)}</div><b>${esc(a.label)}</b>${keys(a.keys)}${a.note ? `<p class="note">${esc(a.note)}</p>` : ''}</div>`).join('')}</div>`;
     if (s.shown) h += shownHtml(s.shown);
     if (s.evidence) h += `<span class="label">Dine beviser${s.evCount ? ` · ${s.evCount.n} af ${s.evCount.max} fremlagt` : ''}</span><div class="list">${s.evidence.map(e => `<div class="item ${e.played ? 'done' : ''}"><div class="ic">${ICON(e.played ? 'check' : e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}${e.canPlay ? `<button class="btn ${e.played ? '' : 'role'} sm act" data-a="play" data-i="${e.i}">${e.played ? 'Vis igen' : 'Fremlæg'}</button>` : ''}</div>`).join('')}</div>`;
+    if (compact) return h;
     if (s.secret) h += `<div class="secret"><span class="label">Det kan forsvareren spørge om</span><p>${esc(s.secret)}</p></div>`;
     if (s.objection) h += `<button class="btn danger objbtn wide" data-a="sheet" data-s="object">${s.shown ? 'Indsigelse mod beviset!' : 'Indsigelse!'} <small>1 tilbage</small></button>`;
     else if (s.objUsed) h += `<button class="btn objbtn wide" disabled>${s.objUsed === 'bevis' ? 'Indsigelse brugt mod dette bevis' : 'Indsigelse brugt i denne tur'}</button>`;
@@ -194,6 +201,7 @@
     if (V.timer) { const t = timerLeft(); h += `<div class="timerbox"><span class="t ${t <= 10 && V.timer.running ? 'low' : ''}" data-timer>${fmt(t)}</span><span class="grow muted">${V.timer.running ? 'Uret kører' : 'Ur'}</span>
       <button class="btn sm ${V.timer.running ? '' : 'ok'}" data-a="timer" data-t="${V.timer.running ? 'pause' : 'start'}">${V.timer.running ? 'Pause' : 'Start'}</button><button class="btn sm ghost" data-a="timer" data-t="reset" aria-label="Nulstil ur">↺</button></div>`; }
     for (const e of s.extras) h += judgeExtra(e, s);
+    for (const x of V.alsoPlays || []) if (x.screen.mode !== 'end') h += `<section class="also" data-as="${x.role}"><div class="alsohead">${badge(x.role)}<div><span class="label">Du spiller også</span><h2>${ROLE[x.role].t}</h2></div>${V.floor === x.role ? '<span class="tag">Har ordet</span>' : ''}</div>${playerBody(x.screen, x.role, true)}</section>`;
     return h;
   }
   function judgeExtra(e, s) {
@@ -316,9 +324,9 @@
       case 'beat': return act('beat', { i });
       case 'floor': return act('floor', { role: V.floor === b.dataset.r ? null : b.dataset.r });
       case 'timer': return act('timer', { a: b.dataset.t });
-      case 'theory': return act('theory', { i });
-      case 'persona': return act('persona', { i });
-      case 'play': return act('play', { i });
+      case 'theory': return act('theory', { i, as: asRole(b) });
+      case 'persona': return act('persona', { i, as: asRole(b) });
+      case 'play': return act('play', { i, as: asRole(b) });
       case 'secret': ui.secret = !ui.secret; ui.html = ''; return render();
       case 'sheet': ui.sheet = b.dataset.s; return render();
       case 'closeSheet': ui.sheet = null; return render();

@@ -259,7 +259,7 @@ function view(r, p) {
   const v = {
     code: r.code, joinUrl: `${r.joinBase}/?r=${r.code}`, phase: r.phase, serverNow: Date.now(), fx: r.fx,
     case: { title: c.title, tagline: c.tagline, icon: c.icon, accused: c.accused.name, warning: c.warning },
-    seats: ORDER.map(k => { const x = byRole(r, k); return { role: k, title: ROLES[k].title, color: ROLES[k].color, icon: ROLES[k].icon, name: x ? x.name : null, online: x ? x.conns > 0 : false }; }),
+    seats: ORDER.map(k => { const x = byRole(r, k) || ((r.alsoPlays || []).includes(k) ? byRole(r, 'judge') : null); return { role: k, title: ROLES[k].title, color: ROLES[k].color, icon: ROLES[k].icon, name: x ? (x.role === k ? x.name : `${x.name} (dommer)`) : null, online: x ? x.conns > 0 : false }; }),
     me: { id: p.id, name: p.name, role: p.role, goal: p.role ? ROLES[p.role].goal : '' }
   };
   if (r.phase !== 'game') return v;
@@ -269,7 +269,7 @@ function view(r, p) {
     lastPlayed: r.played.length ? (() => { const x = r.played[r.played.length - 1]; const e = (x.role === 'prosecutor' ? c.prosecution : c.defense).evidence[x.i]; return { n: r.played.length, by: nameOf(r, x.role), byTitle: ROLES[x.role].title, ...e }; })() : null,
     verdict: r.verdict, revealed: r.revealed
   });
-  if (p.role === 'judge') { v.beats = BEATS.map(b => b.label); v.screen = judgeScreen(r); }
+  if (p.role === 'judge') { v.beats = BEATS.map(b => b.label); v.screen = judgeScreen(r); v.alsoPlays = (r.alsoPlays || []).map(role => ({ role, screen: playerScreen(r, role) })); }
   else {
     v.screen = playerScreen(r, p.role);
     const ok = allowedObj(r, p.role), key = objKey(r, p.role);
@@ -286,6 +286,8 @@ function broadcast(r) { r.touched = Date.now(); for (const c of r.conns) push(c)
 
 /* ---------- handlinger ---------- */
 function act(r, p, type, d = {}) {
+  // Med 3 spillere spiller dommeren også den manglende rolle.
+  if (p.role === 'judge' && d && d.as && (r.alsoPlays || []).includes(d.as) && ['theory', 'persona', 'play'].includes(type)) p = { ...p, role: d.as };
   const judge = p.role === 'judge', game = r.phase === 'game';
   const need = ok => { if (!ok) throw new Error('Det kan du ikke lige nu.'); };
   switch (type) {
@@ -294,7 +296,7 @@ function act(r, p, type, d = {}) {
       if (d.role === null) { p.role = null; break; }
       if (byRole(r, d.role) && byRole(r, d.role) !== p) throw new Error(`${nameOf(r, d.role)} er allerede ${ROLES[d.role].title.toLowerCase()}.`);
       p.role = d.role; break;
-    case 'start': need(judge && r.phase === 'lobby'); r.phase = 'game'; setBeat(r, 0); break;
+    case 'start': need(judge && r.phase === 'lobby' && r.players.filter(x => x.role).length >= 2); r.phase = 'game'; r.alsoPlays = ORDER.filter(k => k !== 'judge' && !byRole(r, k)); setBeat(r, 0); break;
     case 'beat': need(judge && game && Number.isInteger(d.i) && d.i >= 0 && d.i < BEATS.length); setBeat(r, d.i); break;
     case 'floor': need(judge && game && (d.role === null || ORDER.includes(d.role))); r.floor = d.role; r.fx++; break;
     case 'timer': {
@@ -328,7 +330,7 @@ function act(r, p, type, d = {}) {
     }
     case 'verdict': need(judge && BEATS[r.beat].id === 'dom' && ['guilty', 'notGuilty', null].includes(d.v)); r.verdict = d.v; if (!d.v) r.revealed = false; break;
     case 'reveal': need(judge && r.verdict); r.revealed = true; break;
-    case 'newcase': need(judge); Object.assign(r, { phase: 'lobby', beat: 0, caseIdx: (r.caseIdx + 1) % CASES.length, variant: crypto.randomInt(CASES[(r.caseIdx + 1) % CASES.length].twists.length), played: [], theory: {}, persona: null, objUsed: {}, evObj: {}, verdict: null, revealed: false, objection: null, timer: null }); break;
+    case 'newcase': need(judge); Object.assign(r, { phase: 'lobby', beat: 0, caseIdx: (r.caseIdx + 1) % CASES.length, variant: crypto.randomInt(CASES[(r.caseIdx + 1) % CASES.length].twists.length), played: [], theory: {}, persona: null, objUsed: {}, evObj: {}, alsoPlays: [], verdict: null, revealed: false, objection: null, timer: null }); break;
     default: throw new Error('Ukendt handling');
   }
 }

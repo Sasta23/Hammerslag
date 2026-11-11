@@ -252,3 +252,11 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .tag.accepted { background: var(--wine); color: #fff; }
 .tag.rejected { background: var(--surface-2); color: var(--muted); }
 .muted.small { font-size: 14px; }
+
+/* dommeren spiller også en rolle (3 spillere) */
+.also { border: 2px dashed var(--taupe); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 12px; background: var(--bg); }
+.alsohead { display: flex; gap: 10px; align-items: center; }
+.alsohead h2 { font-size: 22px; }
+.alsohead .tag { margin-left: auto; }
+.alsohead .badge { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: #fff; flex: none; }
+.alsohead .badge .i { width: 22px; height: 22px; }
