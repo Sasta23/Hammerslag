@@ -135,8 +135,9 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .k { padding: 7px 12px; border-radius: 4px; background: var(--bg); border: 1px solid var(--taupe); font-weight: 600; font-size: 17px; color: var(--text); }
 .cue .keys .k { background: #fff; }
 .item .keys .k, .opt .keys .k, .card .keys .k, .flash .keys .k { font-size: 14px; padding: 4px 9px; }
-.starter { background: var(--surface-2); border-left: 4px solid var(--role); border-radius: 4px; padding: 12px 14px; font-family: var(--font-body); font-weight: 600; font-size: 22px; line-height: 1.3; color: var(--text); }
-.starter small { display: block; font-family: var(--font-body); font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.starter { position: relative; background: #fff; border: 2px solid var(--role); border-radius: 14px 14px 14px 4px; padding: 12px 16px 14px; color: var(--text); }
+.starter p { font-family: var(--font-body); font-style: italic; font-weight: 600; font-size: 23px; line-height: 1.3; }
+.starter small { display: flex; align-items: center; gap: 6px; font-family: var(--font-body); font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
 .tip { font-size: 14px; color: var(--muted); display: flex; gap: 8px; align-items: flex-start; }
 .tip .i { width: 18px; height: 18px; margin-top: 1px; color: var(--sage); }
 .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -298,3 +299,25 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .item.sel { border: 2px solid var(--role); }
 .evbtns { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 8px; }
 .evbtns .btn { flex: 1; }
+
+/* kursiv = det, man siger */
+.keys.say .k { font-style: italic; background: #fff; border-color: var(--role); border-left-width: 3px; }
+.kw .label { display: block; margin-bottom: 6px; }
+.starter small .i { width: 15px; height: 15px; color: var(--role); }
+.status .ssub { font-size: 15px; opacity: .85; margin-top: 2px; }
+.status.listen h2 { font-size: 24px; }
+.status.listen .label { display: flex; align-items: center; gap: 6px; }
+.status.listen .label .i { width: 14px; height: 14px; }
+.status.speak + .cue, .status.ready + .cue, .status.listen + .cue, .status.private + .cue { margin-top: -6px; }
+
+/* beviser = sagsmapper (ikke kursiv, papir-look) */
+.evstrip { display: flex; flex-direction: column; gap: 8px; }
+.evstrip > .label { display: flex; align-items: center; gap: 6px; }
+.evstrip > .label .i { width: 15px; height: 15px; }
+.evchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.evchip { display: flex; align-items: center; gap: 8px; padding: 10px 14px 10px 12px; background: #e9e1cf; border: 1px solid var(--taupe); border-radius: 2px 10px 2px 2px; box-shadow: 2px 2px 0 var(--taupe); font-weight: 600; font-size: 16px; }
+.evchip .i { width: 18px; height: 18px; color: var(--green); }
+.item.doc { background: #efe8d8; border-color: var(--taupe); border-radius: 2px 12px 2px 2px; box-shadow: 2px 2px 0 var(--line); }
+.item.doc .ic { background: #fff; }
+.item.doc .keys .k { background: transparent; border-style: dashed; }
+.item.doc.sel { border: 2px solid var(--role); }

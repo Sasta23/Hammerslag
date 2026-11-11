@@ -187,25 +187,25 @@ function playerScreen(r, role) {
 
   switch (b.id) {
     case 'sagen':
-      s.mode = 'listen'; s.cue = { icon: 'logo', title: 'Dommeren sætter retten', sub: 'Lyt godt efter. Det her er sagen:' };
+      s.mode = 'listen'; s.cue = { icon: 'logo', title: 'Dommeren sætter retten', sub: 'Lyt godt efter.' };
       s.facts = c.facts; s.showRoles = true; break;
     case 'forb':
       s.mode = 'private';
-      if (lawyer) { s.cue = { icon: role === 'prosecutor' ? 'scale' : 'shield', title: 'Vælg din teori', sub: 'Hvad er din historie om, hvad der skete?' }; s.theories = theoryChoice(); s.preview = side.evidence; }
-      else { s.cue = { icon: 'eye', title: 'Hvem er du som vidne?', sub: `Du er ${w.name}, ${w.about}. Hvordan har du det i retten?` }; s.personas = w.personas.map((p, i) => ({ i, title: p.t, keys: p.keys, picked: r.persona === i })); s.saw = w.keys; s.secret = w.pressure; }
+      if (lawyer) { s.cue = { icon: role === 'prosecutor' ? 'scale' : 'shield', title: 'Vælg din teori', sub: 'Hvad skete der – ifølge dig?' }; s.theories = theoryChoice(); s.preview = side.evidence; }
+      else { s.cue = { icon: 'eye', title: 'Hvem er du som vidne?', sub: `Du er ${w.name}, ${w.about}.` }; s.personas = w.personas.map((p, i) => ({ i, title: p.t, keys: p.keys, picked: r.persona === i })); s.saw = w.keys; s.secret = w.pressure; }
       break;
     case 'aab_p': case 'aab_d': {
       const speaker = b.id === 'aab_p' ? 'prosecutor' : 'defense';
       if (role === speaker) {
         if (!th) { s.mode = 'private'; s.cue = { icon: 'scale', title: 'Vælg din teori først', sub: 'Så får du dine stikord.' }; s.theories = theoryChoice(); break; }
-        speak('Din åbningstale', 'mic', th.keys, th.starter, 'Brug stikordene. Sig det med dine egne ord. Ca. 1 minut.');
+        speak('Din åbningstale', 'mic', th.keys, th.starter);
         s.theoryTitle = th.title; if (!mine) s.mode = 'ready';
       } else if (lawyer) listen('Lyt efter huller', role === 'prosecutor' ? ['Undskyldninger', 'Hvad kan du modbevise?', 'Husk til dit sidste ord'] : ['Hvad påstår de?', 'Hvad mangler bevis?', 'Husk til krydsforhøret']);
       else listen('Øv dit vidneudsagn', w.keys, 'eye');
       break;
     }
     case 'vidne':
-      if (role === 'witness') { speak('Fortæl, hvad der skete', 'eye', w.keys, w.starter, r.persona != null ? `Husk: Du er ${w.personas[r.persona].t.toLowerCase()}.` : 'Sig det med dine egne ord.'); if (!mine) s.mode = 'ready'; }
+      if (role === 'witness') { speak('Fortæl, hvad der skete', 'eye', w.keys, w.starter, r.persona != null ? `Husk: Du er ${w.personas[r.persona].t.toLowerCase()}.` : null); if (!mine) s.mode = 'ready'; }
       else listen('Lyt til vidnet', ['Hvad siger hun præcist?', 'Hvad er usikkert?', 'Hvad kan du spørge om?'], 'ear');
       break;
     case 'fh_p': case 'fh_d': {
@@ -218,7 +218,7 @@ function playerScreen(r, role) {
         s.topics = topics.map((t, i) => ({ icon: t.icon, label: t.label, keys: t.keys }));
       } else if (role === 'witness') {
         s.mode = 'answer';
-        s.cue = { icon: 'eye', title: 'Du bliver afhørt', sub: 'Svar med dine egne ord. Det her ved du om hvert emne:', tip: 'Spørger de om noget andet? Svar kort og ærligt.' };
+        s.cue = { icon: 'eye', title: 'Du bliver afhørt', sub: 'Svar med dine egne ord.' };
         s.answers = topics.map((t, i) => ({ icon: t.icon, label: t.label, keys: pick(answers[i].keys, r), note: answers[i].note || null }));
         if (asker === 'defense') s.secret = w.pressure;
       } else listen('Lyt efter svarene', asker === 'prosecutor' ? ['Hvad er usikkert?', 'Noter svar, du kan bruge', 'Ledende spørgsmål?'] : ['Ledende spørgsmål?', 'Presser de vidnet?', 'Er det relevant?']);
@@ -228,7 +228,7 @@ function playerScreen(r, role) {
       if (lawyer) {
         const P = role === 'prosecutor';
         listen('Lyt til vidneforklaringen', P ? ['Hvad støtter din sag?', 'Passer det med beviserne?'] : ['Hvad er usikkert?', 'Hvad mangler bevis?', 'Ingen kan krydsforhøre hende']);
-        s.cue.sub = `${w.name} møder ikke op. Dommeren læser hendes forklaring op. Bagefter må du kommentere.`;
+        s.cue.sub = 'Bagefter må du kommentere.';
         s.cue.starter = P ? 'Forklaringen viser tydeligt, at …' : 'Forklaringen beviser ikke, at …';
       }
       break;
@@ -237,14 +237,14 @@ function playerScreen(r, role) {
       if (role === presenter) {
         const played = i => r.played.some(x => x.role === role && x.i === i), sel = r.sel[role] || [];
         s.mode = mine ? 'speak' : 'ready';
-        s.cue = { icon: 'folder', title: 'Dine beviser', starter: 'Ærede dommer, beviset viser …', tip: 'Kommer der en indsigelse, så vent på dommeren.' };
+        s.cue = { icon: 'folder', title: 'Dine beviser', starter: 'Ærede dommer, beviset viser …' };
         s.evSteps = { picked: sel.length, max: MAX_EVIDENCE, shown: items.length };
         s.split = { at: 60, first: 'Vælg dine beviser', second: 'Fremlæg dine beviser' };
         s.evidence = side.evidence.map((e, i) => ({ i, ...e, played: played(i), selected: sel.includes(i), canSelect: !played(i) && (sel.includes(i) || sel.length < MAX_EVIDENCE), canPlay: mine && sel.includes(i) }));
         s.evidence.sort((a, b) => b.selected - a.selected);
       } else if (lawyer) {
         listen(`${ROLES[presenter].title}en fremlægger`, ['Hvad viser det IKKE?', 'Anden forklaring?'], 'folder');
-        s.cue.sub = 'Du kan gøre én indsigelse mod hvert bevis.'; s.cue.starter = 'Det beviser intet, fordi …';
+        s.cue.sub = 'Én indsigelse pr. bevis.'; s.cue.starter = 'Det beviser intet, fordi …';
         s.shown = items;
       } else { listen('Lyt til beviserne', ['Lyt roligt', 'Dommeren kan spørge dig'], 'ear'); s.shown = items; }
       break;
@@ -253,19 +253,19 @@ function playerScreen(r, role) {
       s.twist = T(r).reveal;
       if (role === 'witness') {
         s.mode = mine ? 'speak' : 'ready';
-        s.cue = { icon: 'spark', title: mine ? 'Fortæl om det nye bevis' : 'Gør dig klar', sub: mine ? 'Fortæl med dine egne ord, hvad der skete.' : 'Når dommeren giver dig ordet, fortæller du om det her:', keys: T(r).moment, starter: T(r).momentStarter, tip: 'Tal roligt. Du må gerne holde pauser.' };
+        s.cue = { icon: 'spark', title: mine ? 'Fortæl om det nye bevis' : 'Gør dig klar', sub: mine ? null : 'Når du får ordet, fortæller du om det her.', keys: T(r).moment, starter: T(r).momentStarter, tip: 'Tal roligt. Du må gerne holde pauser.' };
       } else {
         const P = role === 'prosecutor';
         s.mode = mine ? 'speak' : 'listen';
-        s.cue = { icon: 'spark', title: mine ? 'Hvad betyder det for sagen?' : 'Lyt til vidnet', sub: mine ? '' : 'Bagefter spørger dommeren dig. Brug stikordene:', keys: P ? ['Beviset støtter vidnet', 'Stadig skyldig'] : ['Beviser det alt?', 'Rimelig tvivl', 'Ord mod ord'], starter: P ? 'Beviset viser tydeligt, at …' : 'Beviset viser ikke, at …' };
+        s.cue = { icon: 'spark', title: mine ? 'Hvad betyder det for sagen?' : 'Lyt til vidnet', sub: mine ? null : 'Bagefter spørger dommeren dig.', keys: P ? ['Beviset støtter vidnet', 'Stadig skyldig'] : ['Beviser det alt?', 'Rimelig tvivl', 'Ord mod ord'], starter: P ? 'Beviset viser tydeligt, at …' : 'Beviset viser ikke, at …' };
       }
       break;
     case 'sid_p': case 'sid_d': {
       const speaker = b.id === 'sid_p' ? 'prosecutor' : 'defense';
       if (role === speaker) {
         if (!th) { s.mode = 'private'; s.cue = { icon: 'scale', title: 'Vælg din teori', sub: 'Vælg den, du har brugt.' }; s.theories = theoryChoice(); break; }
-        const used = side.evidence.filter((e, i) => r.played.some(x => x.role === role && x.i === i)).map(e => e.title);
-        speak('Dit sidste ord', 'mic', th.closeKeys, th.closeStarter, speaker === 'defense' ? 'Slut med: »Der er rimelig tvivl, ærede dommer.«' : '30 sekunder. Sig det med kraft.');
+        const used = side.evidence.filter((e, i) => r.played.some(x => x.role === role && x.i === i)).map(e => ({ icon: e.icon, title: e.title }));
+        speak('Dit sidste ord', 'mic', th.closeKeys, th.closeStarter); s.cue.end = speaker === 'defense' ? 'Der er rimelig tvivl, ærede dommer.' : 'Han bør findes skyldig.';
         if (!mine) s.mode = 'ready';
         s.used = used;
       } else listen('Lyt', role === 'witness' ? ['Snart kommer dommen'] : ['Snart er det din tur', 'Hvad vil du slutte med?']);
@@ -284,7 +284,7 @@ function playerScreen(r, role) {
       break;
   }
   // Dommeren kan give ordet til hvem som helst – så skifter skærmen til »din tur«.
-  if (mine && s.mode === 'listen') { s.mode = 'speak'; s.cue = { ...s.cue, title: 'Du har ordet!', sub: 'Dommeren har givet dig ordet.', starter: s.cue && s.cue.starter || 'Ærede dommer, jeg mener …' }; }
+  if (mine && s.mode === 'listen') { s.mode = 'speak'; s.cue = { ...s.cue, title: 'Dommeren giver dig ordet', sub: null, starter: s.cue && s.cue.starter || 'Ærede dommer, jeg mener …' }; }
   return s;
 }
 
@@ -361,6 +361,11 @@ function act(r, p, type, d = {}) {
       const sel = r.sel[p.role] = r.sel[p.role] || [];
       if (sel.includes(d.i)) { need(!r.played.some(x => x.role === p.role && x.i === d.i)); sel.splice(sel.indexOf(d.i), 1); }
       else { if (sel.length >= MAX_EVIDENCE) throw new Error(`Du kan højst vælge ${MAX_EVIDENCE} beviser.`); sel.push(d.i); }
+      // Har man valgt sine beviser, springer uret videre til »fremlæg« (1 minut).
+      if (sel.length === MAX_EVIDENCE && r.timer) {
+        const t = r.timer, left = t.running ? Math.ceil((t.endsAt - Date.now()) / 1000) : t.left;
+        t.left = Math.min(left, 60); t.endsAt = Date.now() + t.left * 1000; t.running = true; r.fx++;
+      }
       break;
     }
     case 'play': {
