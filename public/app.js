@@ -136,6 +136,13 @@
   }
 
   /* ---------- spillerne ---------- */
+  // Hvem har ordet? Vises øverst for alle spillere.
+  function turnStrip() {
+    if (V.screen.mode === 'end') return '';
+    const f = V.floor, mine = f === V.me.role;
+    return `<div class="turnstrip ${mine ? 'mine' : ''}"><div class="who">${V.seats.map(st => `<div class="av ${st.role === f ? 'on' : ''}" style="--c:${ROLE[st.role].c}">${badge(st.role)}<span>${st.role === V.me.role ? 'Dig' : esc(st.name || st.title)}</span></div>`).join('')}</div>
+      <p>${mine ? '<b>Din tur</b> – du har ordet' : f ? `<b>${esc(V.floorName)}</b> har ordet – du lytter` : 'Ingen har ordet'}</p></div>`;
+  }
   // Statuslinjen samler »hvem taler« og »hvad skal du nu« i én boks.
   function statusHtml() {
     const s = V.screen, c = s.cue || {};
@@ -146,15 +153,17 @@
     if (s.mode === 'private') return box('private', 'lock', 'Kun for dig', c.title || 'Forbered dig');
     if (s.mode === 'answer') return box('speak', 'eye', '<span class="pulse"></span>Du er i vidneskranken', c.title || 'Svar');
     if (s.mode === 'end') return '';
-    return box('listen', c.icon || 'ear', `${ICON('ear')} Lyt · ${who}`, c.title || 'Lyt');
+    return box('listen', c.icon || 'ear', `${ICON('ear')} Du lytter`, c.title || 'Lyt');
   }
   // Det, man SKAL sige, står i kursiv i en taleboble. Stikord er kursive chips.
   const say = (label, text) => `<div class="starter"><small>${ICON('speech')}${label}</small><p>»${esc(text)}«</p></div>`;
-  function cueHtml(c, extra = '', head = false) {
+  function cueHtml(c, extra = '', head = false, mode = 'speak') {
     if (!c) return '';
-    const body = `${c.starter ? say('Start med', c.starter) : ''}
-      ${c.keys && c.keys.length ? `<div class="kw"><span class="label">Stikord</span>${keys(c.keys, 'say')}</div>` : ''}
-      ${c.end ? say('Slut med', c.end) : ''}
+    // Lytter man, vises ingen replikker – kun hvad man skal lytte efter.
+    const talk = mode !== 'listen' && mode !== 'end', soon = mode === 'ready';
+    const body = `${talk && c.starter ? say(soon ? 'Når du får ordet' : 'Start med', c.starter) : ''}
+      ${c.keys && c.keys.length ? `<div class="kw"><span class="label">${talk ? 'Stikord' : 'Lyt efter'}</span>${keys(c.keys, talk ? 'say' : 'listen')}</div>` : ''}
+      ${talk && c.end ? say('Slut med', c.end) : ''}
       ${extra}
       ${c.tip ? `<p class="tip">${ICON('bulb')}${esc(c.tip)}</p>` : ''}`;
     if (!head && !body.trim()) return '';
@@ -165,7 +174,7 @@
   function playerHtml() {
     const s = V.screen, me = V.me.role;
     let h = `<header class="top"><div class="badge">${ICON(ROLE[me].i)}</div><div><b>${esc(V.me.name)} · ${ROLE[me].t}</b><span>${esc(V.case.title)}</span></div><button class="btn sm" data-a="sheet" data-s="role">Min rolle</button></header>`;
-    h += timerBar(s) + statusHtml();
+    h += turnStrip() + timerBar(s) + statusHtml();
     if (s.mode === 'end') return h + endHtml(s);
     return h + playerBody(s, me);
   }
@@ -179,10 +188,10 @@
       h += `<div class="evsteps"><div class="evstep ${two ? 'done' : 'now'}"><i>${two ? '✓' : '1'}</i><div><b>Vælg ${st.max} beviser</b><span>30 sekunder · ${st.picked} af ${st.max} valgt</span></div></div>
         <div class="evstep ${two ? 'now' : ''}"><i>2</i><div><b>Fremlæg dem</b><span>1 minut · tryk »Fremlæg« og forklar</span></div></div></div>`;
     }
-    h += cueHtml(s.cue, extra, compact);
+    h += cueHtml(s.cue, extra, compact, s.mode);
     if (s.used && s.used.length) h += evChips('Nævn dine beviser', s.used);
     if (s.showRoles) h += `<span class="label">I retten i dag</span>${seatsHtml(false)}`;
-    if (s.theories) h += `<span class="label">Vælg én teori</span><div class="list">${s.theories.map(t => `<button class="opt" data-a="theory" data-i="${t.i}" aria-pressed="${t.picked}"><div class="ic">${ICON(me === 'prosecutor' ? 'scale' : 'shield')}</div><b>${esc(t.title)}</b><div class="tick">${ICON('check')}</div>${keys(t.keys, 'say')}</button>`).join('')}</div>`;
+    if (s.theories) h += `<span class="label">${esc(s.theoryHint || 'Vælg én teori')}</span><div class="list">${s.theories.map(t => `<button class="opt" data-a="theory" data-i="${t.i}" aria-pressed="${t.picked}"><div class="ic">${ICON(me === 'prosecutor' ? 'scale' : 'shield')}</div><b>${esc(t.title)}</b><div class="tick">${ICON('check')}</div>${keys(t.keys, 'say')}</button>`).join('')}</div>`;
     if (s.preview) h += `<span class="label">Dine beviser</span><div class="list">${s.preview.map(e => `<div class="item doc"><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}</div>`).join('')}</div>`;
     if (s.personas) h += `<span class="label">Din personlighed</span><div class="list">${s.personas.map(p => `<button class="opt" data-a="persona" data-i="${p.i}" aria-pressed="${p.picked}"><div class="ic">${ICON('users')}</div><b>${esc(p.title)}</b><div class="tick">${ICON('check')}</div>${keys(p.keys)}</button>`).join('')}</div>`;
     if (s.saw) h += `<span class="label">Det fortæller du</span><div class="card">${keys(s.saw, 'say')}</div>`;
@@ -229,6 +238,8 @@
     if (V.objection && V.objection.status === 'pending') h += `<div class="alert enter"><span class="label" style="color:#f3e1de">Indsigelse fra ${esc(V.objection.byTitle.toLowerCase())}en</span><h3>»${esc(V.objection.type)}«</h3>${V.objection.about ? `<p style="color:#f3e1de">Mod beviset: ${esc(V.objection.about)}</p>` : ''}
       <div class="row"><button class="btn ok" data-a="rule" data-ok="1">Taget til følge</button><button class="btn" data-a="rule" data-ok="0">Afvist</button></div></div>`;
     h += `<div><span class="label">Nu</span><h1 style="font-size:28px;margin-top:4px">${esc(s.now)}</h1><p class="muted" style="margin-top:6px">${esc(s.hint)}</p></div>`;
+    if (V.turn && V.turn.n > 1) h += `<div class="turns">${V.turn.labels.map((l, i) => `<span class="${i < V.turn.i ? 'done' : i === V.turn.i ? 'now' : ''}">${i < V.turn.i ? '✓ ' : ''}${esc(l)}</span>`).join('<i>→</i>')}</div>`;
+    if (V.timer && !V.timer.running && V.timer.left === V.timer.secs) h += `<button class="btn startclock wide" data-a="timer" data-t="start">${ICON('clock')}<span>Start uret</span><b>${fmt(V.timer.secs)}</b></button>`;
     if (s.presented) h += presentedHtml(s.presented);
     if (s.script && !(V.screen.extras || []).some(e => e.type === 'verdict' && V.verdict)) h += `<div class="script"><span class="label">${ICON('speech')}Læs højt</span>${paras(s.script)}</div>`;
     if (s.warning && V.beat === 0) h += `<p class="warn">${esc(s.warning)}</p>`;
@@ -282,7 +293,10 @@
     return '';
   }
   function judgeFoot() {
-    const n = V.beats.length;
+    const n = V.beats.length, tu = V.turn || { i: 0, n: 1 };
+    const back = tu.i > 0 ? `data-a="turn" data-i="${tu.i - 1}"` : `data-a="beat" data-i="${Math.max(0, V.beat - 1)}" ${V.beat === 0 ? 'disabled' : ''}`;
+    if (tu.next) return `<button class="btn" ${back} aria-label="Tilbage">◀</button><button class="btn primary" data-a="turn" data-i="${tu.i + 1}">Giv ordet videre: ${esc(tu.next)} ▶</button>`;
+    if (tu.i > 0 && V.beat < n - 1) return `<button class="btn" ${back} aria-label="Tilbage">◀</button><button class="btn primary" data-a="beat" data-i="${V.beat + 1}">Næste: ${esc(V.beats[V.beat + 1])} ▶</button>`;
     if (V.beat >= n - 1) return `<button class="btn" data-a="beat" data-i="${V.beat - 1}" aria-label="Forrige trin">◀</button><button class="btn" disabled>Sidste trin</button>`;
     return `<button class="btn" data-a="beat" data-i="${Math.max(0, V.beat - 1)}" ${V.beat === 0 ? 'disabled' : ''} aria-label="Forrige trin">◀</button>
       <button class="btn primary" data-a="beat" data-i="${V.beat + 1}">Næste: ${esc(V.beats[V.beat + 1])} ▶</button>`;
@@ -393,6 +407,7 @@
       case 'unpick': return act('role', { role: null });
       case 'start': return act('start');
       case 'beat': return act('beat', { i });
+      case 'turn': return act('turn', { i });
       case 'floor': return act('floor', { role: V.floor === b.dataset.r ? null : b.dataset.r });
       case 'timer': return act('timer', { a: b.dataset.t });
       case 'theory': return act('theory', { i, as: asRole(b) });

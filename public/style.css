@@ -321,3 +321,30 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .item.doc .ic { background: #fff; }
 .item.doc .keys .k { background: transparent; border-style: dashed; }
 .item.doc.sel { border: 2px solid var(--role); }
+
+/* hvem har ordet – strimmel øverst */
+.turnstrip { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); }
+.turnstrip .who { display: flex; justify-content: space-around; gap: 6px; }
+.turnstrip .av { display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: .35; transition: opacity .3s, transform .3s; min-width: 0; }
+.turnstrip .av span { font-size: 12px; font-weight: 600; max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.turnstrip .av .badge { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: #fff; }
+.turnstrip .av .badge .i { width: 20px; height: 20px; }
+.turnstrip .av.on { opacity: 1; transform: scale(1.12); }
+.turnstrip .av.on .badge { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--c); animation: ring 1.6s infinite; }
+.turnstrip p { text-align: center; font-size: 15px; color: var(--muted); }
+.turnstrip p b { color: var(--text); }
+.turnstrip.mine { background: var(--role); border-color: var(--role); }
+.turnstrip.mine p, .turnstrip.mine p b, .turnstrip.mine .av span { color: var(--role-ink); }
+@keyframes ring { 50% { box-shadow: 0 0 0 3px var(--surface), 0 0 0 10px transparent; } }
+.keys.listen .k { background: transparent; border-style: dashed; color: var(--muted); font-weight: 500; }
+
+/* dommeren: ture i trinnet + stor startknap til uret */
+.turns { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.turns span { font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); background: var(--surface); }
+.turns span.now { background: var(--text); color: #f4efe4; border-color: var(--text); }
+.turns span.done { color: var(--green); }
+.turns i { font-style: normal; color: var(--taupe); }
+.startclock { display: flex; align-items: center; gap: 12px; justify-content: center; min-height: 66px; font-size: 21px; background: var(--wine); color: #fff; border-color: var(--wine); animation: glow 1.4s infinite; }
+.startclock .i { width: 26px; height: 26px; }
+.startclock b { font-family: var(--font-display); font-size: 28px; font-weight: 600; }
+@keyframes glow { 50% { box-shadow: 0 0 0 6px rgba(122,43,43,.25); } }

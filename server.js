@@ -30,11 +30,11 @@ const rolesOf = r => SIZES[r.size] || ORDER;
 const BEATS = [
   { id: 'sagen', label: 'Sagen', floor: 'judge' },
   { id: 'forb', label: 'Forberedelse', floor: null, secs: 60 },
-  { id: 'aab_p', label: 'Anklagerens åbningstale', floor: 'prosecutor', secs: 60 },
-  { id: 'aab_d', label: 'Forsvarerens åbningstale', floor: 'defense', secs: 60 },
-  { id: 'vidne', label: 'Vidnet fortæller', floor: 'witness', secs: 60 },
-  { id: 'fh_p', label: 'Anklageren afhører', floor: 'prosecutor', secs: 90 },
-  { id: 'fh_d', label: 'Forsvareren krydsforhører', floor: 'defense', secs: 90 },
+  { id: 'aab_p', label: 'Anklagerens åbningstale', floor: 'prosecutor', secs: 45 },
+  { id: 'aab_d', label: 'Forsvarerens åbningstale', floor: 'defense', secs: 45 },
+  { id: 'vidne', label: 'Vidnet fortæller', floor: 'witness', secs: 45 },
+  { id: 'fh_p', label: 'Anklageren afhører', floor: 'prosecutor', secs: 60 },
+  { id: 'fh_d', label: 'Forsvareren krydsforhører', floor: 'defense', secs: 60 },
   { id: 'bev_p', label: 'Anklagerens beviser', floor: 'prosecutor', secs: 90 },
   { id: 'bev_d', label: 'Forsvarerens beviser', floor: 'defense', secs: 90 },
   { id: 'twist', label: 'Nyt bevis', floor: 'judge', secs: 90 },
@@ -97,18 +97,19 @@ function base(req) {
   return `http://${lan()}:${PORT}`;
 }
 function newRoom(caseIdx, joinBase, size = 4) {
-  const r = { code: code(), caseIdx, size, variant: crypto.randomInt(CASES[caseIdx].twists.length), joinBase, players: [], phase: 'lobby', beat: 0, floor: 'judge',
+  const r = { code: code(), caseIdx, size, variant: crypto.randomInt(CASES[caseIdx].twists.length), joinBase, players: [], phase: 'lobby', beat: 0, turn: 0, floor: 'judge',
     timer: null, objection: null, played: [], theory: {}, persona: null, objUsed: {}, evObj: {}, sel: {}, verdict: null, revealed: false, conns: new Set(), fx: 0, touched: Date.now() };
   rooms.set(r.code, r); return r;
 }
-const FORKL = { id: 'forkl', label: 'Vidneforklaringen', floor: 'judge', secs: 90 };
-function beatsOf(r) {
-  if (r.size === 4) return BEATS;
-  const out = BEATS.filter(b => !['vidne', 'fh_p', 'fh_d'].includes(b.id));
-  out.splice(out.findIndex(b => b.id === 'aab_d') + 1, 0, FORKL);
-  return out;
-}
-const BT = r => beatsOf(r)[r.beat];
+const BYID = Object.fromEntries([...BEATS, { id: 'forkl', label: 'Vidneforklaringen', floor: 'judge', secs: 60 }].map(b => [b.id, b]));
+// Vertical slice: 7 trin. Et trin kan have flere »ture« – dommeren giver ordet videre med »Næste«.
+const STEPS = {
+  4: [['Sagen', 'sagen'], ['Åbningstaler', 'aab_p', 'aab_d'], ['Vidnet', 'vidne', 'fh_p', 'fh_d'], ['Anklagerens beviser', 'bev_p'], ['Forsvarerens beviser', 'bev_d'], ['Sidste ord', 'sid_p', 'sid_d'], ['Dommen', 'dom']],
+  3: [['Sagen', 'sagen'], ['Åbningstaler', 'aab_p', 'aab_d'], ['Vidneforklaringen', 'forkl'], ['Anklagerens beviser', 'bev_p'], ['Forsvarerens beviser', 'bev_d'], ['Sidste ord', 'sid_p', 'sid_d'], ['Dommen', 'dom']]
+};
+const stepsOf = r => STEPS[r.size === 4 ? 4 : 3];
+const turnsOf = r => stepsOf(r)[r.beat].slice(1);
+const BT = r => BYID[turnsOf(r)[r.turn || 0]];
 // Ved 2 spillere fremlægger dommeren anklagerens beviser.
 const alsoPlays = r => r.phase === 'game' && r.size === 2 && BT(r).id === 'bev_p' ? ['prosecutor'] : [];
 const C = r => CASES[r.caseIdx];
@@ -122,7 +123,7 @@ function judgeScreen(r) {
   const ex = [];
   switch (b.id) {
     case 'sagen':
-      s.now = 'Sæt retten'; s.hint = 'Rejs dig op, og læs sagen højt. Alle kan se rollerne på deres telefon.';
+      s.now = 'Sæt retten'; s.hint = 'Rejs dig, og læs sagen højt. Imens vælger advokaterne deres teori.';
       s.script = ['Retten er sat.', `I dag behandler vi sagen mod ${c.accused.name}, ${c.accused.about}.`, ...c.intro, `${c.accused.name} er tiltalt for ${c.charge}. Han nægter sig skyldig.`];
       if (r.size < 4) s.script.push(`Vidnet ${w.name} møder ikke op i dag. Retten læser hendes forklaring til politiet op.${r.size === 2 ? ' Anklagerens indlæg bliver også læst op af retten.' : ''}`);
       s.warning = c.warning;
@@ -188,7 +189,10 @@ function playerScreen(r, role) {
   switch (b.id) {
     case 'sagen':
       s.mode = 'listen'; s.cue = { icon: 'logo', title: 'Dommeren sætter retten', sub: 'Lyt godt efter.' };
-      s.facts = c.facts; s.showRoles = true; break;
+      s.facts = c.facts; s.showRoles = true;
+      if (lawyer) { s.theories = theoryChoice(); s.theoryHint = 'Vælg din teori, mens du lytter'; }
+      if (role === 'witness') { s.personas = w.personas.map((p, i) => ({ i, title: p.t, keys: p.keys, picked: r.persona === i })); }
+      break;
     case 'forb':
       s.mode = 'private';
       if (lawyer) { s.cue = { icon: role === 'prosecutor' ? 'scale' : 'shield', title: 'Vælg din teori', sub: 'Hvad skete der – ifølge dig?' }; s.theories = theoryChoice(); s.preview = side.evidence; }
@@ -304,7 +308,7 @@ function view(r, p) {
     lastPlayed: r.played.length ? (() => { const x = r.played[r.played.length - 1]; const e = (x.role === 'prosecutor' ? c.prosecution : c.defense).evidence[x.i]; return { n: r.played.length, by: nameOf(r, x.role), byTitle: ROLES[x.role].title, ...e }; })() : null,
     verdict: r.verdict, revealed: r.revealed
   });
-  if (p.role === 'judge') { v.beats = beatsOf(r).map(b => b.label); v.screen = judgeScreen(r); v.alsoPlays = alsoPlays(r).map(role => ({ role, screen: playerScreen(r, role) })); }
+  if (p.role === 'judge') { v.beats = stepsOf(r).map(x => x[0]); const tu = turnsOf(r); v.turn = { i: r.turn, n: tu.length, next: tu[r.turn + 1] ? BYID[tu[r.turn + 1]].label : null, labels: tu.map(id => BYID[id].label) }; v.screen = judgeScreen(r); v.alsoPlays = alsoPlays(r).map(role => ({ role, screen: playerScreen(r, role) })); }
   else {
     v.screen = playerScreen(r, p.role);
     const ok = allowedObj(r, p.role), key = objKey(r, p.role);
@@ -333,7 +337,8 @@ function act(r, p, type, d = {}) {
       p.role = d.role; break;
     case 'start': need(judge && r.phase === 'lobby' && rolesOf(r).every(k => byRole(r, k))); r.phase = 'game'; if (r.size === 2) r.theory.prosecutor = 0; setBeat(r, 0); break;
     case 'size': need(judge && r.phase === 'lobby' && SIZES[d.n]); r.size = d.n; for (const x of r.players) if (x.role && !rolesOf(r).includes(x.role)) x.role = null; break;
-    case 'beat': need(judge && game && Number.isInteger(d.i) && d.i >= 0 && d.i < beatsOf(r).length); setBeat(r, d.i); break;
+    case 'beat': need(judge && game && Number.isInteger(d.i) && d.i >= 0 && d.i < stepsOf(r).length); setBeat(r, d.i); break;
+    case 'turn': need(judge && game && Number.isInteger(d.i) && d.i >= 0 && d.i < turnsOf(r).length); r.turn = d.i; applyTurn(r); break;
     case 'floor': need(judge && game && (d.role === null || ORDER.includes(d.role))); r.floor = d.role; r.fx++; break;
     case 'timer': {
       need(judge && game); const t = r.timer || { secs: BT(r).secs || 60, endsAt: null, left: BT(r).secs || 60, running: false };
@@ -379,13 +384,15 @@ function act(r, p, type, d = {}) {
     }
     case 'verdict': need(judge && BT(r).id === 'dom' && ['guilty', 'notGuilty', null].includes(d.v)); r.verdict = d.v; if (!d.v) r.revealed = false; break;
     case 'reveal': need(judge && r.verdict); r.revealed = true; break;
-    case 'newcase': need(judge); Object.assign(r, { phase: 'lobby', beat: 0, caseIdx: (r.caseIdx + 1) % CASES.length, variant: crypto.randomInt(CASES[(r.caseIdx + 1) % CASES.length].twists.length), played: [], theory: {}, persona: null, objUsed: {}, evObj: {}, sel: {}, verdict: null, revealed: false, objection: null, timer: null }); break;
+    case 'newcase': need(judge); Object.assign(r, { phase: 'lobby', beat: 0, turn: 0, caseIdx: (r.caseIdx + 1) % CASES.length, variant: crypto.randomInt(CASES[(r.caseIdx + 1) % CASES.length].twists.length), played: [], theory: {}, persona: null, objUsed: {}, evObj: {}, sel: {}, verdict: null, revealed: false, objection: null, timer: null }); break;
     default: throw new Error('Ukendt handling');
   }
 }
-function setBeat(r, i) {
-  r.beat = i; r.floor = beatsOf(r)[i].floor; r.objection = null; r.objUsed = {};
-  r.timer = beatsOf(r)[i].secs ? { secs: beatsOf(r)[i].secs, left: beatsOf(r)[i].secs, endsAt: null, running: false } : null;
+function setBeat(r, i) { r.beat = i; r.turn = 0; applyTurn(r); }
+function applyTurn(r) {
+  const b = BT(r);
+  r.floor = b.floor; r.objection = null; r.objUsed = {};
+  r.timer = b.secs ? { secs: b.secs, left: b.secs, endsAt: null, running: false } : null;
   r.fx++;
 }
 
