@@ -311,6 +311,12 @@ function view(r, p) {
   if (p.role === 'judge') { v.beats = stepsOf(r).map(x => x[0]); const tu = turnsOf(r); v.turn = { i: r.turn, n: tu.length, next: tu[r.turn + 1] ? BYID[tu[r.turn + 1]].label : null, labels: tu.map(id => BYID[id].label) }; v.screen = judgeScreen(r); v.alsoPlays = alsoPlays(r).map(role => ({ role, screen: playerScreen(r, role) })); }
   else {
     v.screen = playerScreen(r, p.role);
+    // Næste i samme trin? Så får man en guide til sin tur, mens man lytter.
+    const tu = turnsOf(r), nx = r.phase === 'game' && tu[r.turn + 1] && BYID[tu[r.turn + 1]];
+    if (nx && nx.floor === p.role && r.floor !== p.role && (p.role === 'prosecutor' || p.role === 'defense')) {
+      const save = [r.turn, r.floor]; r.turn++; r.floor = p.role;
+      try { const ns = playerScreen(r, p.role); if (ns.cue && ns.cue.starter) v.screen.next = ns.cue; } finally { [r.turn, r.floor] = save; }
+    }
     const ok = allowedObj(r, p.role), key = objKey(r, p.role);
     v.objections = ok.map(i => ({ i, ...OBJECTIONS[i] }));
     v.screen.objection = ok.length > 0;
