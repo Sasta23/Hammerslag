@@ -63,7 +63,7 @@
       const me = s.role === V.me.role, free = !s.name;
       const can = clickable && free;
       return `<${can ? 'button' : 'div'} class="seat ${me ? 'me' : ''} ${can ? 'free' : ''} ${clickable && !free && !me ? 'taken' : ''}" ${can ? `data-a="pickRole" data-r="${s.role}"` : ''}>
-        ${badge(s.role)}<div><b>${s.title}</b><span>${esc({ judge: 'Leder retten', prosecutor: 'Vil have en dom', defense: 'Skaber tvivl', witness: 'Ved noget' }[s.role])}</span></div>
+        ${badge(s.role)}<div><b>${s.title}</b><span>${esc({ judge: 'Leder retten', prosecutor: 'Vil have en dom', defense: 'Forsvarer sin klient', witness: 'Ved noget' }[s.role])}</span></div>
         <div class="who ${free ? 'empty' : ''}">${free ? (can ? 'Vælg' : 'Ledig') : `<span class="dot ${s.online ? '' : 'off'}"></span>${esc(s.name)}${me ? ' (dig)' : ''}`}</div></${can ? 'button' : 'div'}>`;
     }).join('')}</div>`;
   }
@@ -178,7 +178,7 @@
     // Lytter man, vises ingen replikker – kun hvad man skal lytte efter.
     const talk = mode !== 'listen' && mode !== 'end', soon = mode === 'ready';
     const body = `${talk && c.starter ? say(soon ? 'Når du får ordet' : 'Start med', c.starter) : ''}
-      ${c.keys && c.keys.length ? `<div class="kw"><span class="label">${talk ? 'Stikord' : 'Lyt efter'}</span>${keys(c.keys, talk ? 'say' : 'listen')}</div>` : ''}
+      ${c.keys && c.keys.length ? `<div class="kw"><span class="label">${!talk ? 'Lyt efter' : c.keys[0].startsWith('…') ? 'Fortsæt sætningen med' : 'Stikord'}</span>${keys(c.keys, talk ? 'say' : 'listen')}</div>` : ''}
       ${talk && c.end ? say('Slut med', c.end) : ''}
       ${extra}
       ${c.tip ? `<p class="tip">${ICON('bulb')}${esc(c.tip)}</p>` : ''}`;
@@ -190,7 +190,7 @@
   function evFlow(s) {
     const st = s.evSteps, two = evTwo(s), c = s.cue || {};
     const card = (e, act) => `<button class="evpick ${e.selected ? 'on' : ''}" data-a="${act}" data-i="${e.i}" ${act === 'select' && !e.canSelect ? 'disabled' : ''}>
-      <div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}<span class="mark">${e.selected ? ICON('check') : ''}</span></button>`;
+      <div class="ic">${ICON(e.icon)}</div>${e.selected ? `<span class="evletter">Bevis ${e.letter}</span>` : ''}<b>${esc(e.title)}</b>${keys(e.keys)}<span class="mark">${e.selected ? esc(e.letter) : ''}</span></button>`;
     let h = `<div class="stepper"><span class="${two ? 'done' : 'now'}"><i>${two ? '✓' : '1'}</i>Vælg</span><em></em><span class="${two ? 'now' : ''}"><i>2</i>Fremlæg</span></div>`;
     if (!two) {
       h += `<section class="evphase"><div class="evtitle"><div><span class="label">Trin 1 · 30 sekunder</span><h2>Vælg ${st.max} beviser</h2></div><div class="count"><b>${st.picked}</b>/${st.max}</div></div>
@@ -202,7 +202,7 @@
     h += `<section class="evphase"><div class="evtitle"><div><span class="label">Trin 2 · 1 minut</span><h2>Fremlæg og forklar</h2></div></div>
       ${c.starter ? say('Start med', c.starter) : ''}
       ${tapHint('Tryk »Fremlæg« – så ser alle beviset')}<span class="label">Dine valgte beviser</span>
-      <div class="list">${chosen.map(e => `<div class="evchosen ${e.played ? 'done' : ''}"><div class="ic">${ICON(e.played ? 'check' : e.icon)}</div><div class="grow"><b>${esc(e.title)}</b>${keys(e.keys)}</div>
+      <div class="list">${chosen.map(e => `<div class="evchosen ${e.played ? 'done' : ''}"><div class="ic">${ICON(e.played ? 'check' : e.icon)}</div><div class="grow"><span class="evletter">Bevis ${esc(e.letter)}</span><b>${esc(e.title)}</b>${keys(e.keys)}</div>
         ${e.canPlay ? `<button class="btn ${e.played ? 'sm' : 'role'}" data-a="play" data-i="${e.i}">${e.played ? 'Vis igen' : 'Fremlæg'}</button>` : `<span class="tag">${e.played ? 'Fremlagt' : 'Vent'}</span>`}</div>`).join('') || '<p class="muted">Du har ikke valgt nogen beviser.</p>'}</div>
       ${c.end ? say('Slut med', c.end) : ''}
       ${rest.length && chosen.length < st.max ? `<details class="more"><summary>Vælg ${st.max - chosen.length} mere</summary><div class="evgrid">${rest.map(e => card(e, 'select')).join('')}</div></details>` : ''}
@@ -210,7 +210,7 @@
     return h;
   }
   // Beviser vises som »sagsmapper« – tydeligt adskilt fra det, man skal sige.
-  const evChips = (label, list) => `<div class="evstrip"><span class="label">${ICON('folder')}${label}</span><div class="evchips">${list.map(e => `<div class="evchip">${ICON(e.icon)}<span>${esc(e.title)}</span></div>`).join('')}</div></div>`;
+  const evChips = (label, list) => `<div class="evstrip"><span class="label">${ICON('folder')}${label}</span><div class="evchips">${list.map(e => `<div class="evchip">${ICON(e.icon)}<span>${e.letter ? `<b>Bevis ${esc(e.letter)}</b> · ` : ''}${esc(e.title)}</span></div>`).join('')}</div></div>`;
   function playerHtml() {
     const s = V.screen, me = V.me.role;
     let h = `<header class="top"><div class="badge">${ICON(ROLE[me].i)}</div><div><b>${esc(V.me.name)} · ${ROLE[me].t}</b><span>${esc(V.case.title)}</span></div><button class="btn sm" data-a="sheet" data-s="role">Min rolle</button></header>`;
@@ -227,7 +227,6 @@
     else if (!compact && (me === 'prosecutor' || me === 'defense') && s.cue && s.cue.starter && (s.mode === 'ready' || (s.mode === 'speak' && prepping(s)))) h += prepHtml(s.cue) + (extra ? `<section class="cue">${extra}</section>` : '');
     else h += cueHtml(s.cue, extra, compact, s.mode);
     if (s.used && s.used.length) h += evChips('Dine fremlagte beviser – nævn dem', s.used);
-    if (s.showRoles) h += `<span class="label">I retten i dag</span>${seatsHtml(false)}`;
     if (s.theories) h += `<span class="label">${esc(s.theoryHint || 'Vælg én teori')}</span>${tapHint('Tryk på én teori – den bestemmer dine stikord')}<div class="list">${s.theories.map(t => `<button class="opt" data-a="theory" data-i="${t.i}" aria-pressed="${t.picked}"><div class="ic">${ICON(me === 'prosecutor' ? 'scale' : 'shield')}</div><b>${esc(t.title)}</b><div class="tick">${ICON('check')}</div>${keys(t.keys, 'say')}</button>`).join('')}</div>`;
     if (s.preview) h += `<span class="label">Dine beviser</span><div class="list">${s.preview.map(e => `<div class="item doc"><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}</div>`).join('')}</div>`;
     if (s.personas) h += `<span class="label">Din personlighed</span>${tapHint('Tryk på én')}<div class="list">${s.personas.map(p => `<button class="opt" data-a="persona" data-i="${p.i}" aria-pressed="${p.picked}"><div class="ic">${ICON('users')}</div><b>${esc(p.title)}</b><div class="tick">${ICON('check')}</div>${keys(p.keys)}</button>`).join('')}</div>`;
@@ -254,11 +253,11 @@
   const truthHtml = t => `<section class="cue enter"><div class="head"><div class="ic">${ICON('spark')}</div><div><span class="label">Den rigtige sag</span><h2>${esc(t.title)}</h2></div></div><p>${esc(t.text)}</p><div class="starter"><small>Bagefter</small>${esc(t.epilogue)}</div></section>`;
 
   const objTag = o => o ? `<span class="tag ${o.status}">${o.status === 'pending' ? 'Indsigelse – venter' : o.status === 'accepted' ? 'Indsigelse taget til følge' : 'Indsigelse afvist'}</span>` : '';
-  const shownHtml = (items, by) => `<span class="label tagged" style="--c:${ROLE[by] ? ROLE[by].c : '#3f5446'}">${ROLE[by] ? ICON(ROLE[by].i) : ''}${by === 'prosecutor' ? 'Anklagerens' : 'Forsvarerens'} fremlagte beviser</span>${items.length ? `<div class="list">${items.map(e => `<div class="item doc"><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)} ${objTag(e.objection)}</b>${keys(e.keys)}</div>`).join('')}</div>` : '<p class="muted">Intet bevis fremlagt endnu.</p>'}`;
+  const shownHtml = (items, by) => `<span class="label tagged" style="--c:${ROLE[by] ? ROLE[by].c : '#3f5446'}">${ROLE[by] ? ICON(ROLE[by].i) : ''}${by === 'prosecutor' ? 'Anklagerens' : 'Forsvarerens'} fremlagte beviser</span>${items.length ? `<div class="list">${items.map(e => `<div class="item doc"><div class="ic">${ICON(e.icon)}</div><b><span class="evletter">Bevis ${esc(e.letter)}</span> ${esc(e.title)} ${objTag(e.objection)}</b>${keys(e.keys)}</div>`).join('')}</div>` : '<p class="muted">Intet bevis fremlagt endnu.</p>'}`;
   function presentedHtml(p) {
     const notes = store.get('rs-notes-' + V.code) || {};
     const who = p.side === 'prosecutor' ? 'Anklageren' : 'Forsvareren';
-    const cards = p.items.map(e => `<div class="evcard"><span class="label">Bevis ${e.n} af 2 ${objTag(e.objection)}</span>
+    const cards = p.items.map(e => `<div class="evcard"><span class="label">Bevis ${esc(e.letter)} ${objTag(e.objection)}</span>
       <div class="evhead"><div class="ic">${ICON(e.icon)}</div><h3>${esc(e.title)}</h3></div>${keys(e.keys)}
       <div class="seg"><button class="yes" data-a="note" data-k="${e.k}" data-v="1" aria-pressed="${notes[e.k] === 1}">Overbevisende</button><button class="no" data-a="note" data-k="${e.k}" data-v="2" aria-pressed="${notes[e.k] === 2}">Tvivlsomt</button></div></div>`).join('');
     return `<section class="presented"><span class="label">${ICON('folder')}${who} har fremlagt</span>
@@ -374,7 +373,7 @@
   /* ---------- reaktioner på ændringer ---------- */
   function react(v) {
     if (!V || v.phase !== 'game') { last = { played: v.lastPlayed ? v.lastPlayed.n : 0, obj: v.objection ? v.objection.id : 0, floor: v.floor, beat: v.beat }; return; }
-    if (v.lastPlayed && v.lastPlayed.n !== last.played) { flash({ icon: v.lastPlayed.icon, label: `${v.lastPlayed.byTitle === 'Anklager' ? 'Anklagerens' : 'Forsvarerens'} bevis`, title: v.lastPlayed.title, keysList: v.lastPlayed.keys }); }
+    if (v.lastPlayed && v.lastPlayed.n !== last.played) { flash({ icon: v.lastPlayed.icon, label: `${v.lastPlayed.byTitle === 'Anklager' ? 'Anklagerens' : 'Forsvarerens'} bevis ${v.lastPlayed.letter || ''}`, title: v.lastPlayed.title, keysList: v.lastPlayed.keys }); }
     if (v.objection && v.objection.id !== last.obj) {
       const o = v.objection;
       if (o.status === 'pending') { flash({ cls: 'obj', icon: 'hand', label: `Indsigelse · ${o.byTitle}`, title: o.type }); if (v.me.role === 'judge') buzz([200, 80, 200]); }

@@ -75,7 +75,8 @@ module.exports = [
     name: 'Anne', about: 'Kemals kone og den forurettede',
     // Bruges ved 2–3 spillere: vidnet møder ikke op, så retten læser hendes forklaring til politiet op.
     statement: ['Jeg kom hjem lidt før klokken to. Kemal var vågen og meget vred, fordi jeg ikke havde taget telefonen.', 'Vi råbte begge to. Så slog han mig i brystet, så jeg faldt. Mens jeg lå ned, sparkede han mig flere gange i ryggen.', 'Jeg holdt hænderne op for at beskytte mig, og han ramte dem. Han slog mig også i baghovedet.', 'Da jeg kom på benene, løb jeg ud. Samme nat tog jeg på skadestuen.'],
-    keys: ['Han slog mig', 'Jeg faldt', 'Han sparkede', 'Jeg løb væk'], starter: 'Han slog mig i brystet',
+    // Stikordene fortsætter start-sætningen: »Da jeg kom hjem, … slog han mig i brystet«
+    keys: ['… var Kemal meget vred', '… slog han mig i brystet', '… faldt jeg', '… sparkede han mig', '… løb jeg ud'], starter: 'Da jeg kom hjem, …',
     pressure: 'Forsvareren vil spørge, hvor du var, og hvorfor du ikke svarede. I beskyldte begge hinanden for utroskab. Det ændrer ikke på, hvad han gjorde.',
     personas: [
       { t: 'Rystet', keys: ['Taler stille', 'Holder pauser', 'Kigger ned'] },
@@ -167,7 +168,7 @@ module.exports = [
   witness: {
     name: 'Janni', about: 'kollega og den forurettede',
     statement: ['Vi havde danset, og jeg sagde ja til en øl på hans værelse. Jeg havde ikke tænkt mig mere end det.', 'Han begyndte at kysse mig. Jeg sagde, at det gad jeg ikke, og skubbede hans hænder væk.', 'Jeg rejste mig og sagde: »Lad mig gå.« Han trak mig hen til sengen og holdt mig fast.', 'Bagefter løb jeg ud. Tidligt om morgenen ringede jeg til min søster.'],
-    keys: ['Han kyssede mig', 'Jeg sagde nej', 'Skubbede ham væk', 'Han holdt mig fast'], starter: 'Jeg sagde, at jeg ikke',
+    keys: ['… kyssede han mig', '… sagde jeg nej', '… skubbede jeg ham væk', '… holdt han mig fast', '… løb jeg ud'], starter: 'Da vi kom op på værelset, …',
     pressure: 'Forsvareren vil spørge til dansen, knuset, ølen og hvorfor du ventede fire dage. Intet af det er det samme som at sige ja.',
     personas: [
       { t: 'Rystet', keys: ['Taler stille', 'Holder pauser', 'Kigger ned'] },

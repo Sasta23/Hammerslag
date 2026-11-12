@@ -17,7 +17,7 @@ const PUB = path.join(__dirname, 'public');
 const ROLES = {
   judge:      { title: 'Dommer',    color: '#7a2b2b', icon: 'logo',  goal: 'Du leder retssagen og afsiger dommen.' },
   prosecutor: { title: 'Anklager',  color: '#3f5446', icon: 'scale',  goal: 'Få dommeren til at sige SKYLDIG.' },
-  defense:    { title: 'Forsvarer', color: '#6e846f', icon: 'shield', goal: 'Skab rimelig tvivl, så dommen bliver IKKE SKYLDIG.' },
+  defense:    { title: 'Forsvarer', color: '#6e846f', icon: 'shield', goal: 'Forsvar din klient, så dommen bliver IKKE SKYLDIG.' },
   witness:    { title: 'Vidne',     color: '#34405e', icon: 'eye',    goal: 'Fortæl retten, hvad der skete – med dine egne ord.' }
 };
 const ORDER = ['judge', 'prosecutor', 'defense', 'witness'];
@@ -75,8 +75,10 @@ function allowedObj(r, role) {
   return list;
 }
 const evOf = (r, x) => (x.role === 'prosecutor' ? C(r).prosecution : C(r).defense).evidence[x.i];
+// Beviser får navn efter rækkefølgen, de blev valgt i: Bevis A og Bevis B.
+const letterOf = (r, role, i) => 'AB'[(r.sel[role] || []).indexOf(i)] || '';
 function presented(r, side) {
-  return r.played.filter(x => x.role === side).map((x, n) => ({ n: n + 1, k: (side === 'prosecutor' ? 'p' : 'd') + x.i, ...evOf(r, x), objection: r.evObj[x.role + x.i] || null }));
+  return r.played.filter(x => x.role === side).map((x, n) => ({ n: n + 1, letter: letterOf(r, side, x.i), k: (side === 'prosecutor' ? 'p' : 'd') + x.i, ...evOf(r, x), objection: r.evObj[x.role + x.i] || null }));
 }
 
 /* ---------- rum ---------- */
@@ -205,7 +207,7 @@ function playerScreen(r, role) {
         speak('Din åbningstale', 'mic', th.keys, th.starter); s.cue.end = role === 'prosecutor' ? 'Det vil vi bevise i dag.' : 'Ved tvivl skal man frifinde.';
         s.theoryTitle = th.title; if (!mine) s.mode = 'ready';
       } else if (lawyer) listen('Lyt efter huller', role === 'prosecutor' ? ['Undskyldninger', 'Hvad kan du modbevise?', 'Husk til dit sidste ord'] : ['Hvad påstår de?', 'Hvad mangler bevis?', 'Husk til krydsforhøret']);
-      else listen('Øv dit vidneudsagn', w.keys, 'eye');
+      else { s.mode = 'ready'; s.cue = { icon: 'eye', title: 'Øv dit vidneudsagn', keys: w.keys, starter: w.starter }; }
       break;
     }
     case 'vidne':
@@ -244,7 +246,7 @@ function playerScreen(r, role) {
         s.cue = { icon: 'folder', title: 'Dine beviser', starter: 'Ærede dommer, beviset viser …', end: role === 'prosecutor' ? 'Det beviser hans skyld.' : 'Det skaber rimelig tvivl.' };
         s.evSteps = { picked: sel.length, max: MAX_EVIDENCE, shown: items.length };
         s.split = { at: 60, first: 'Vælg dine beviser', second: 'Fremlæg dine beviser' };
-        s.evidence = side.evidence.map((e, i) => ({ i, ...e, played: played(i), selected: sel.includes(i), canSelect: !played(i) && (sel.includes(i) || sel.length < MAX_EVIDENCE), canPlay: mine && sel.includes(i) }));
+        s.evidence = side.evidence.map((e, i) => ({ i, ...e, letter: letterOf(r, role, i), played: played(i), selected: sel.includes(i), canSelect: !played(i) && (sel.includes(i) || sel.length < MAX_EVIDENCE), canPlay: mine && sel.includes(i) }));
         s.evidence.sort((a, b) => b.selected - a.selected);
       } else if (lawyer) {
         listen(`${ROLES[presenter].title}en fremlægger`, ['Hvad viser det IKKE?', 'Anden forklaring?'], 'folder');
@@ -268,7 +270,7 @@ function playerScreen(r, role) {
       const speaker = b.id === 'sid_p' ? 'prosecutor' : 'defense';
       if (role === speaker) {
         if (!th) { s.mode = 'private'; s.cue = { icon: 'scale', title: 'Vælg din teori', sub: 'Vælg den, du har brugt.' }; s.theories = theoryChoice(); break; }
-        const used = side.evidence.filter((e, i) => r.played.some(x => x.role === role && x.i === i)).map(e => ({ icon: e.icon, title: e.title }));
+        const used = side.evidence.filter((e, i) => r.played.some(x => x.role === role && x.i === i)).map(e => ({ icon: e.icon, title: e.title, letter: letterOf(r, role, side.evidence.indexOf(e)) }));
         speak('Dit sidste ord', 'mic', th.closeKeys, th.closeStarter); s.cue.end = speaker === 'defense' ? 'Der er rimelig tvivl, ærede dommer.' : 'Han bør findes skyldig.';
         if (!mine) s.mode = 'ready';
         s.used = used;
@@ -305,7 +307,7 @@ function view(r, p) {
   Object.assign(v, {
     beat: r.beat, beatLabel: BT(r).label, floor: r.floor, floorName: r.floor ? nameOf(r, r.floor) : null,
     timer: r.timer, objection: r.objection && { ...r.objection, byName: nameOf(r, r.objection.by), byTitle: ROLES[r.objection.by].title },
-    lastPlayed: r.played.length ? (() => { const x = r.played[r.played.length - 1]; const e = (x.role === 'prosecutor' ? c.prosecution : c.defense).evidence[x.i]; return { n: r.played.length, by: nameOf(r, x.role), byTitle: ROLES[x.role].title, ...e }; })() : null,
+    lastPlayed: r.played.length ? (() => { const x = r.played[r.played.length - 1]; const e = (x.role === 'prosecutor' ? c.prosecution : c.defense).evidence[x.i]; return { n: r.played.length, by: nameOf(r, x.role), byTitle: ROLES[x.role].title, ...e, letter: letterOf(r, x.role, x.i) }; })() : null,
     verdict: r.verdict, revealed: r.revealed
   });
   if (p.role === 'judge') { v.beats = stepsOf(r).map(x => x[0]); const tu = turnsOf(r); v.turn = { i: r.turn, n: tu.length, next: tu[r.turn + 1] ? BYID[tu[r.turn + 1]].label : null, labels: tu.map(id => BYID[id].label) }; v.screen = judgeScreen(r); v.alsoPlays = alsoPlays(r).map(role => ({ role, screen: playerScreen(r, role) })); }
@@ -359,7 +361,7 @@ function act(r, p, type, d = {}) {
       need(game && allowedObj(r, p.role).includes(d.t) && !(r.objection && r.objection.status === 'pending'));
       r.objUsed[objKey(r, p.role)] = true;
       const L = BEV[BT(r).id] && lastEv(r);
-      r.objection = { by: p.role, type: OBJECTIONS[d.t].t, status: 'pending', id: ++r.fx, ev: L ? L.role + L.i : null, about: L ? evOf(r, L).title : null };
+      r.objection = { by: p.role, type: OBJECTIONS[d.t].t, status: 'pending', id: ++r.fx, ev: L ? L.role + L.i : null, about: L ? `Bevis ${letterOf(r, L.role, L.i)}: ${evOf(r, L).title}` : null };
       if (L) r.evObj[r.objection.ev] = { type: r.objection.type, status: 'pending' };
       break;
     }
