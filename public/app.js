@@ -154,7 +154,8 @@
   // Statuslinjen samler »hvem taler« og »hvad skal du nu« i én boks.
   function statusHtml() {
     const s = V.screen;
-    const c = s.evSteps ? { ...s.cue, title: evTwo(s) ? 'Fremlæg dine beviser' : 'Vælg dine beviser' } : (s.cue || {});
+    const evStep = s.evSteps ? (s.evidence.some(e => e.played) ? 3 : s.evidence.some(e => e.selected) ? 2 : 1) : 0;
+    const c = s.evSteps ? { ...s.cue, title: ['', 'Vælg ét bevis', 'Fremlæg dit bevis', 'Forklar dit bevis'][evStep] } : (s.cue || {});
     const who = V.floorName ? `${esc(V.floorName)} taler` : 'Vent på dommeren';
     const box = (cls, icon, label, title) => `<div class="status ${cls}"><div class="ic">${ICON(icon)}</div><div><span class="label">${label}</span><h2>${esc(title)}</h2>${c.sub ? `<p class="ssub">${esc(c.sub)}</p>` : ''}</div></div>`;
     if (s.mode === 'speak' && prepping(s)) return box('ready', 'hourglass', 'Din tur om lidt', `Forbered dig: ${(c.title || '').toLowerCase()}`).replace('</h2>', '</h2><p class="ssub">Læs guiden. Du taler, når dommeren starter uret.</p>');
@@ -163,19 +164,38 @@
     if (s.mode === 'private') return box('private', 'lock', 'Kun for dig', c.title || 'Forbered dig');
     if (s.mode === 'answer') return box('speak', 'eye', '<span class="pulse"></span>Du er i vidneskranken', c.title || 'Svar');
     if (s.mode === 'end') return '';
-    return box('listen', c.icon || 'ear', `${ICON('ear')} Du lytter`, c.title || 'Lyt');
+    return `<div class="status listen"><div class="ic">${ICON('ear')}</div><div><span class="label">Lyt · du skal ikke tale nu</span><h2>${esc(c.title || 'Lyt')}</h2><p class="ssub">${V.floorName ? `${esc(V.floorName)} taler. ` : ''}${esc(c.sub || 'Lyt godt efter.')}</p></div></div>`;
   }
   // Før uret starter: en lille guide til, hvad advokaten skal sige.
   const prepping = s => !s.evSteps && V.timer && !V.timer.running && V.timer.left === V.timer.secs;
+  // Taleguide: 1) sig først  2) fortæl om (med »skub«-ord)  3) slut med. Tydeligt hierarki.
+  const CONNECT = ['Først …', 'Derefter …', 'Og så …', 'Og til sidst …', 'Desuden …'];
+  function speechGuide(c, o = {}) {
+    const cont = c.keys && c.keys.length && c.keys[0].startsWith('…');
+    const con = o.connectors || CONNECT;
+    const steps = [];
+    if (c.starter) steps.push(`<div class="sgstep s1"><i>1</i><div><small>Begynd med at sige</small><q>${esc(c.starter)}</q></div></div>`);
+    if (c.keys && c.keys.length) steps.push(`<div class="sgstep s2"><i>${steps.length + 1}</i><div><small>${cont ? 'Fortsæt sætningen – vælg det, der passer' : 'Fortæl så om 2–3 af disse – med dine egne ord'}</small>
+      <ul class="flow">${c.keys.map((k, n) => `<li>${cont ? '' : `<em>${esc(con[n % con.length])}</em>`}<span>${esc(k)}</span></li>`).join('')}</ul>
+      <p class="push">${ICON('bulb')}<span><b>Går du i stå?</b> Sig: »Og det betyder, at …« – og tag næste stikord.</span></p></div></div>`);
+    if (c.end) steps.push(`<div class="sgstep s3"><i>${steps.length + 1}</i><div><small>Slut af med at sige</small><q>${esc(c.end)}</q></div></div>`);
+    return `<section class="sg ${o.live ? 'live' : ''} enter"><div class="sghead">${ICON(o.live ? 'mic' : 'bulb')}<span>${esc(o.title || (o.live ? 'Tal nu – følg trinene' : 'Sådan gør du'))}</span></div>${steps.join('')}</section>`;
+  }
   function prepHtml(c, label) {
     const secs = V.timer ? V.timer.secs : null;
-    return `<section class="prep enter"><span class="label">${ICON('bulb')}${label || `Sådan gør du${secs ? ` · ca. ${secs} sek.` : ''}`}</span>
-      <ol>
-        ${c.starter ? `<li><b>Start med</b><q>${esc(c.starter)}</q></li>` : ''}
-        ${c.keys && c.keys.length ? `<li><b>Sig noget om 2–3 af disse</b>${keys(c.keys, 'say')}</li>` : ''}
-        ${c.end ? `<li><b>Slut med</b><q>${esc(c.end)}</q></li>` : ''}
-      </ol>
-      <p class="prepnote">Du behøver ikke trykke på noget – bare sig det højt med dine egne ord.</p></section>`;
+    return speechGuide(c, { title: label || `Sådan gør du · ca. ${secs || 45} sek. – læs det, mens du venter` });
+  }
+  // Sagen: advokaten lytter OG vælger teori – guidet trin for trin.
+  function sagenTask(s, me) {
+    const picked = s.theories.find(t => t.picked);
+    return `<section class="task"><span class="label">${ICON('bulb')}Det skal du nu</span>
+      <ol class="todo">
+        <li class="done"><b>Lyt til dommeren</b><span>Han læser sagen op lige nu.</span></li>
+        <li class="${picked ? 'done' : 'now'}"><b>Vælg din teori</b><span>En teori er <i>din forklaring</i> på, hvad der skete. Den giver dig stikordene til din tale.</span></li>
+        <li class="${picked ? 'now' : ''}"><b>Lyt videre</b><span>Dommeren giver dig ordet, når det er din tur.</span></li>
+      </ol></section>
+      ${picked ? `<div class="donebar">${ICON('check')}<p><b>Godt! Du har valgt »${esc(picked.title)}«</b>. Nu skal du bare lytte. Du kan stadig skifte.</p></div>` : tapHint('Tryk på den teori, du tror mest på')}
+      <div class="list">${s.theories.map(t => `<button class="opt" data-a="theory" data-i="${t.i}" aria-pressed="${t.picked}"><div class="ic">${ICON(me === 'prosecutor' ? 'scale' : 'shield')}</div><b>${esc(t.title)}</b><div class="tick">${ICON('check')}</div>${keys(t.keys, 'say')}</button>`).join('')}</div>`;
   }
   const tapHint = t => `<p class="taphint">${ICON('hand')}${esc(t)}</p>`;
   // Det, man SKAL sige, står i kursiv i en taleboble. Stikord er kursive chips.
@@ -194,26 +214,32 @@
   }
   // Bevisfasen i to tydelige trin: 1) vælg 2 beviser  2) fremlæg dem.
   const evTwo = s => phase(s) === 2 || s.evSteps.picked >= s.evSteps.max;
+  // Bevisfasen trin for trin: 1) vælg ÉT bevis  2) fremlæg det  3) forklar det.
   function evFlow(s) {
     const st = s.evSteps, two = evTwo(s), c = s.cue || {};
-    const card = (e, act) => `<button class="evpick ${e.selected ? 'on' : ''}" data-a="${act}" data-i="${e.i}" ${act === 'select' && !e.canSelect ? 'disabled' : ''}>
-      <div class="ic">${ICON(e.icon)}</div>${e.selected ? `<span class="evletter">Bevis ${e.letter}</span>` : ''}<b>${esc(e.title)}</b>${keys(e.keys)}<span class="mark">${e.selected ? esc(e.letter) : ''}</span></button>`;
-    let h = `<div class="stepper"><span class="${two ? 'done' : 'now'}"><i>${two ? '✓' : '1'}</i>Vælg</span><em></em><span class="${two ? 'now' : ''}"><i>2</i>Fremlæg</span></div>`;
-    if (!two) {
-      h += `<section class="evphase"><div class="evtitle"><div><span class="label">Trin 1 · 30 sekunder</span><h2>Vælg ${st.max} beviser</h2></div><div class="count"><b>${st.picked}</b>/${st.max}</div></div>
-        ${tapHint(`Tryk på de ${st.max} beviser, du vil bruge`)}
-        <div class="evgrid">${s.evidence.map(e => card(e, 'select')).join('')}</div></section>`;
+    const chosen = s.evidence.find(e => e.selected), shown = s.evidence.find(e => e.played);
+    const step = shown ? 3 : chosen ? 2 : 1;
+    const dot = (n, t) => `<span class="${step > n ? 'done' : step === n ? 'now' : ''}"><i>${step > n ? '✓' : n}</i>${t}</span>`;
+    let h = `<div class="stepper">${dot(1, 'Vælg')}<em></em>${dot(2, 'Fremlæg')}<em></em>${dot(3, 'Forklar')}</div>`;
+    if (step === 1) {
+      h += `<section class="evphase"><span class="label">Trin 1 af 3</span><h2>Vælg <u>ét</u> bevis</h2>
+        <div class="rule1">${ICON('hand')}<p><b>Du må kun vælge 1 bevis.</b> Vælg det, der hjælper din sag mest.</p></div>
+        ${tapHint('Tryk på det bevis, du vil bruge')}
+        <div class="evgrid">${s.evidence.map(e => `<button class="evpick" data-a="select" data-i="${e.i}" ${e.canSelect ? '' : 'disabled'}><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}<span class="mark"></span></button>`).join('')}</div></section>`;
       return h;
     }
-    const chosen = s.evidence.filter(e => e.selected), rest = s.evidence.filter(e => !e.selected && e.canSelect);
-    h += `<section class="evphase"><div class="evtitle"><div><span class="label">Trin 2 · 1 minut</span><h2>Fremlæg og forklar</h2></div></div>
-      ${c.starter ? say('Start med', c.starter) : ''}
-      ${tapHint('Tryk »Fremlæg« – så ser alle beviset')}<span class="label">Dine valgte beviser</span>
-      <div class="list">${chosen.map(e => `<div class="evchosen ${e.played ? 'done' : ''}"><div class="ic">${ICON(e.played ? 'check' : e.icon)}</div><div class="grow"><span class="evletter">Bevis ${esc(e.letter)}</span><b>${esc(e.title)}</b>${keys(e.keys)}</div>
-        ${e.canPlay ? `<button class="btn ${e.played ? 'sm' : 'role'}" data-a="play" data-i="${e.i}">${e.played ? 'Vis igen' : 'Fremlæg'}</button>` : `<span class="tag">${e.played ? 'Fremlagt' : 'Vent'}</span>`}</div>`).join('') || '<p class="muted">Du har ikke valgt nogen beviser.</p>'}</div>
-      ${c.end ? say('Slut med', c.end) : ''}
-      ${rest.length && chosen.length < st.max ? `<details class="more"><summary>Vælg ${st.max - chosen.length} mere</summary><div class="evgrid">${rest.map(e => card(e, 'select')).join('')}</div></details>` : ''}
-    </section>`;
+    if (step === 2) {
+      h += `<section class="evphase"><span class="label">Trin 2 af 3</span><h2>Fremlæg dit bevis</h2>
+        <div class="evbig"><span class="evletter">Bevis ${esc(chosen.letter)}</span><div class="evhead"><div class="ic">${ICON(chosen.icon)}</div><h3>${esc(chosen.title)}</h3></div>${keys(chosen.keys)}</div>
+        <div class="explain">${ICON('bulb')}<p><b>Hvad betyder »fremlæg«?</b> Det betyder, at du viser beviset til retten. Når du trykker på knappen, kan alle se beviset på deres telefon.</p></div>
+        ${chosen.canPlay ? `<button class="btn role lg wide" data-a="play" data-i="${chosen.i}">${ICON('folder')} Fremlæg Bevis ${esc(chosen.letter)}</button>` : `<p class="muted" style="text-align:center">Vent, til dommeren giver dig ordet – så kan du fremlægge.</p>`}
+        <button class="btn sm ghost" data-a="select" data-i="${chosen.i}">Fortryd – vælg et andet bevis</button></section>`;
+      return h;
+    }
+    const t = s.evTalk || { starter: c.starter, keys: shown.keys, end: c.end };
+    h += `<div class="donebar">${ICON('check')}<p><b>Bevis ${esc(shown.letter)} er fremlagt.</b> Alle kan nu se det. Forklar det nu højt.</p>
+      ${shown.canPlay ? `<button class="btn sm" data-a="play" data-i="${shown.i}">Vis igen</button>` : ''}</div>`;
+    h += speechGuide({ starter: t.starter, keys: t.keys, end: t.end }, { live: true, title: 'Trin 3 af 3 · Forklar beviset', connectors: ['Beviset viser, at …', 'Det betyder, at …', 'Og det passer med, at …', 'Til sidst …'] });
     return h;
   }
   // Beviser vises som »sagsmapper« – tydeligt adskilt fra det, man skal sige.
@@ -231,10 +257,11 @@
     if (s.facts) extra += `<div class="facts">${s.facts.map(([i, b, t]) => `<div class="fact">${ICON(i)}<b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('')}</div>`;
     if (s.twist) extra += `<div class="fact" style="flex-direction:row;gap:12px;align-items:flex-start">${ICON(s.twist.icon)}<div><b>${esc(s.twist.title)}</b><p style="font-size:14px;margin-top:4px">${esc(s.twist.text)}</p></div></div>`;
     if (s.evSteps) h += evFlow(s);
-    else if (!compact && (me === 'prosecutor' || me === 'defense') && s.cue && s.cue.starter && (s.mode === 'ready' || (s.mode === 'speak' && prepping(s)))) h += prepHtml(s.cue) + (extra ? `<section class="cue">${extra}</section>` : '');
+    else if (s.sagenTask && !compact) h += sagenTask(s, me) + (extra ? `<span class="label">Fakta i sagen</span><section class="cue">${extra}</section>` : '');
+    else if (!compact && s.cue && s.cue.starter && (s.mode === 'ready' || s.mode === 'speak')) h += (s.mode === 'speak' && !prepping(s) ? speechGuide(s.cue, { live: true }) : prepHtml(s.cue)) + (extra ? `<section class="cue">${extra}</section>` : '');
     else h += cueHtml(s.cue, extra, compact, s.mode);
     if (s.used && s.used.length) h += evChips('Dine fremlagte beviser – nævn dem', s.used);
-    if (s.theories) h += `<span class="label">${esc(s.theoryHint || 'Vælg én teori')}</span>${tapHint('Tryk på én teori – den bestemmer dine stikord')}<div class="list">${s.theories.map(t => `<button class="opt" data-a="theory" data-i="${t.i}" aria-pressed="${t.picked}"><div class="ic">${ICON(me === 'prosecutor' ? 'scale' : 'shield')}</div><b>${esc(t.title)}</b><div class="tick">${ICON('check')}</div>${keys(t.keys, 'say')}</button>`).join('')}</div>`;
+    if (s.theories && !s.sagenTask) h += `<span class="label">${esc(s.theoryHint || 'Vælg én teori')}</span>${tapHint('Tryk på én teori – den bestemmer dine stikord')}<div class="list">${s.theories.map(t => `<button class="opt" data-a="theory" data-i="${t.i}" aria-pressed="${t.picked}"><div class="ic">${ICON(me === 'prosecutor' ? 'scale' : 'shield')}</div><b>${esc(t.title)}</b><div class="tick">${ICON('check')}</div>${keys(t.keys, 'say')}</button>`).join('')}</div>`;
     if (s.preview) h += `<span class="label">Dine beviser</span><div class="list">${s.preview.map(e => `<div class="item doc"><div class="ic">${ICON(e.icon)}</div><b>${esc(e.title)}</b>${keys(e.keys)}</div>`).join('')}</div>`;
     if (s.personas) h += `<span class="label">Din personlighed</span>${tapHint('Tryk på én')}<div class="list">${s.personas.map(p => `<button class="opt" data-a="persona" data-i="${p.i}" aria-pressed="${p.picked}"><div class="ic">${ICON('users')}</div><b>${esc(p.title)}</b><div class="tick">${ICON('check')}</div>${keys(p.keys)}</button>`).join('')}</div>`;
     if (s.saw) h += `<span class="label">Det fortæller du</span><div class="card">${keys(s.saw, 'say')}</div>`;
@@ -269,7 +296,7 @@
       <div class="seg"><button class="yes" data-a="note" data-k="${e.k}" data-v="1" aria-pressed="${notes[e.k] === 1}">Overbevisende</button><button class="no" data-a="note" data-k="${e.k}" data-v="2" aria-pressed="${notes[e.k] === 2}">Tvivlsomt</button></div></div>`).join('');
     return `<section class="presented"><span class="label">${ICON('folder')}${who} har fremlagt</span>
       ${cards || `<p class="muted">Venter på, at ${who.toLowerCase()} fremlægger et bevis …</p>`}
-      ${p.items.length < 2 && p.left.length ? `<p class="muted small">Kan stadig fremlægges: ${p.left.map(esc).join(' · ')}</p>` : ''}</section>`;
+      ${p.items.length < 1 && p.left.length ? `<p class="muted small">Kan stadig fremlægges: ${p.left.map(esc).join(' · ')}</p>` : ''}</section>`;
   }
   // Dommerens ur: samme plads før og efter start. Ikke startet = stor rød knap.
   function clockHtml(s) {

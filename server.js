@@ -50,7 +50,7 @@ const OBJECTIONS = [
   { t: 'Det er irrelevant!', d: 'Det har intet med sagen at gøre' },
   { t: 'De presser vidnet!', d: 'Spørgsmålene er urimelige over for vidnet' }
 ];
-const MAX_EVIDENCE = 2;
+const MAX_EVIDENCE = 1; // ét bevis pr. side: anklagerens = Bevis A, forsvarerens = Bevis B
 const BEV = { bev_p: 'prosecutor', bev_d: 'defense' };
 // Hvem må gøre indsigelse? Vidnet er anklagerens vidne – så forsvareren må
 // gøre indsigelse, når anklageren eller vidnet taler, og anklageren kun, når
@@ -76,7 +76,7 @@ function allowedObj(r, role) {
 }
 const evOf = (r, x) => (x.role === 'prosecutor' ? C(r).prosecution : C(r).defense).evidence[x.i];
 // Beviser får navn efter rækkefølgen, de blev valgt i: Bevis A og Bevis B.
-const letterOf = (r, role, i) => 'AB'[(r.sel[role] || []).indexOf(i)] || '';
+const letterOf = (r, role, i) => (r.sel[role] || []).includes(i) || r.played.some(x => x.role === role && x.i === i) ? (role === 'prosecutor' ? 'A' : 'B') : '';
 function presented(r, side) {
   return r.played.filter(x => x.role === side).map((x, n) => ({ n: n + 1, letter: letterOf(r, side, x.i), k: (side === 'prosecutor' ? 'p' : 'd') + x.i, ...evOf(r, x), objection: r.evObj[x.role + x.i] || null }));
 }
@@ -152,9 +152,9 @@ function judgeScreen(r) {
     case 'bev_p': case 'bev_d': {
       const P = b.id === 'bev_p', side = BEV[b.id];
       s.now = P ? 'Anklagerens beviser' : 'Forsvarerens beviser';
-      s.timerNote = '0:30 til at vælge beviser · 1:00 til at fremlægge';
-      s.hint = P && r.size === 2 ? `Du fremlægger anklagerens beviser i boksen nederst (højst ${MAX_EVIDENCE}). Læs dem højt. Forsvareren kan gøre indsigelse mod hvert bevis.` : `${P ? 'Anklageren' : 'Forsvareren'} fremlægger op til ${MAX_EVIDENCE} beviser. ${P ? 'Forsvareren' : 'Anklageren'} kan gøre indsigelse mod hvert bevis. Vurdér hvert bevis.`;
-      s.script = [`${P ? 'Anklageren' : 'Forsvareren'} må nu fremlægge sine beviser.`, `Højst ${MAX_EVIDENCE} beviser.`];
+      s.timerNote = '0:30 til at vælge ét bevis · 1:00 til at fremlægge og forklare';
+      s.hint = P && r.size === 2 ? 'Du vælger og fremlægger anklagerens bevis i boksen nederst. Læs det højt. Forsvareren kan gøre indsigelse.' : `${P ? 'Anklageren' : 'Forsvareren'} vælger ét bevis og fremlægger det. ${P ? 'Forsvareren' : 'Anklageren'} kan gøre indsigelse. Vurdér beviset.`;
+      s.script = [`${P ? 'Anklageren' : 'Forsvareren'} må nu fremlægge ét bevis.`];
       s.presented = { side, items: presented(r, side), left: (P ? c.prosecution : c.defense).evidence.filter((e, i) => !r.played.some(x => x.role === side && x.i === i)).map(e => e.title) };
       break;
     }
@@ -192,7 +192,7 @@ function playerScreen(r, role) {
     case 'sagen':
       s.mode = 'listen'; s.cue = { icon: 'logo', title: 'Dommeren sætter retten', sub: 'Lyt godt efter.' };
       s.facts = c.facts; s.showRoles = true;
-      if (lawyer) { s.theories = theoryChoice(); s.theoryHint = 'Vælg din teori, mens du lytter'; }
+      if (lawyer) { s.theories = theoryChoice(); s.theoryHint = 'Vælg din teori, mens du lytter'; s.cue = { icon: 'ear', title: 'Lyt – og vælg din teori', sub: 'Dommeren læser sagen op.' }; s.sagenTask = true; }
       if (role === 'witness') { s.personas = w.personas.map((p, i) => ({ i, title: p.t, keys: p.keys, picked: r.persona === i })); }
       break;
     case 'forb':
@@ -243,14 +243,16 @@ function playerScreen(r, role) {
       if (role === presenter) {
         const played = i => r.played.some(x => x.role === role && x.i === i), sel = r.sel[role] || [];
         s.mode = mine ? 'speak' : 'ready';
-        s.cue = { icon: 'folder', title: 'Dine beviser', starter: 'Ærede dommer, beviset viser …', end: role === 'prosecutor' ? 'Det beviser hans skyld.' : 'Det skaber rimelig tvivl.' };
+        s.cue = { icon: 'folder', title: 'Dit bevis', starter: 'Ærede dommer, se her …', end: role === 'prosecutor' ? 'Det beviser hans skyld.' : 'Det skaber rimelig tvivl.' };
+        const pl = side.evidence.findIndex((e, i) => played(i));
+        if (pl >= 0) s.evTalk = { title: side.evidence[pl].title, starter: `Ærede dommer, se her: ${side.evidence[pl].title}.`, keys: side.evidence[pl].keys, end: s.cue.end };
         s.evSteps = { picked: sel.length, max: MAX_EVIDENCE, shown: items.length };
-        s.split = { at: 60, first: 'Vælg dine beviser', second: 'Fremlæg dine beviser' };
-        s.evidence = side.evidence.map((e, i) => ({ i, ...e, letter: letterOf(r, role, i), played: played(i), selected: sel.includes(i), canSelect: !played(i) && (sel.includes(i) || sel.length < MAX_EVIDENCE), canPlay: mine && sel.includes(i) }));
+        s.split = { at: 60, first: 'Vælg ét bevis', second: 'Fremlæg og forklar' };
+        s.evidence = side.evidence.map((e, i) => ({ i, ...e, letter: letterOf(r, role, i), played: played(i), selected: sel.includes(i), canSelect: !r.played.some(x => x.role === role), canPlay: mine && sel.includes(i) }));
         s.evidence.sort((a, b) => b.selected - a.selected);
       } else if (lawyer) {
         listen(`${ROLES[presenter].title}en fremlægger`, ['Hvad viser det IKKE?', 'Anden forklaring?'], 'folder');
-        s.cue.sub = 'Én indsigelse pr. bevis.'; s.cue.starter = 'Det beviser intet, fordi …';
+        s.cue.sub = 'Du må gøre én indsigelse mod beviset.'; s.cue.starter = 'Det beviser intet, fordi …';
         s.shown = items; s.shownBy = presenter;
       } else { listen('Lyt til beviserne', ['Lyt roligt', 'Dommeren kan spørge dig'], 'ear'); s.shown = items; s.shownBy = presenter; }
       break;
@@ -307,7 +309,7 @@ function view(r, p) {
   Object.assign(v, {
     beat: r.beat, beatLabel: BT(r).label, floor: r.floor, floorName: r.floor ? nameOf(r, r.floor) : null,
     timer: r.timer, objection: r.objection && { ...r.objection, byName: nameOf(r, r.objection.by), byTitle: ROLES[r.objection.by].title },
-    lastPlayed: r.played.length ? (() => { const x = r.played[r.played.length - 1]; const e = (x.role === 'prosecutor' ? c.prosecution : c.defense).evidence[x.i]; return { n: r.played.length, by: nameOf(r, x.role), byTitle: ROLES[x.role].title, ...e, letter: letterOf(r, x.role, x.i) }; })() : null,
+    lastPlayed: r.played.length ? (() => { const x = r.played[r.played.length - 1]; const e = (x.role === 'prosecutor' ? c.prosecution : c.defense).evidence[x.i]; return { n: r.playSeq || r.played.length, by: nameOf(r, x.role), byTitle: ROLES[x.role].title, ...e, letter: letterOf(r, x.role, x.i) }; })() : null,
     verdict: r.verdict, revealed: r.revealed
   });
   if (p.role === 'judge') { v.beats = stepsOf(r).map(x => x[0]); const tu = turnsOf(r); v.turn = { i: r.turn, n: tu.length, next: tu[r.turn + 1] ? BYID[tu[r.turn + 1]].label : null, labels: tu.map(id => BYID[id].label) }; v.screen = judgeScreen(r); v.alsoPlays = alsoPlays(r).map(role => ({ role, screen: playerScreen(r, role) })); }
@@ -373,7 +375,7 @@ function act(r, p, type, d = {}) {
       need(game && BEV[BT(r).id] === p.role && Number.isInteger(d.i) && (p.role === 'prosecutor' ? C(r).prosecution : C(r).defense).evidence[d.i]);
       const sel = r.sel[p.role] = r.sel[p.role] || [];
       if (sel.includes(d.i)) { need(!r.played.some(x => x.role === p.role && x.i === d.i)); sel.splice(sel.indexOf(d.i), 1); }
-      else { if (sel.length >= MAX_EVIDENCE) throw new Error(`Du kan højst vælge ${MAX_EVIDENCE} beviser.`); sel.push(d.i); }
+      else { need(!r.played.some(x => x.role === p.role)); if (sel.length >= MAX_EVIDENCE) sel.length = 0; sel.push(d.i); }
       // Har man valgt sine beviser, springer uret videre til »fremlæg« (1 minut).
       if (sel.length === MAX_EVIDENCE && r.timer) {
         const t = r.timer, left = t.running ? Math.ceil((t.endsAt - Date.now()) / 1000) : t.left;
@@ -385,10 +387,10 @@ function act(r, p, type, d = {}) {
       need(game && BEV[BT(r).id] === p.role && r.floor === p.role && !(r.objection && r.objection.status === 'pending'));
       const ev = (p.role === 'prosecutor' ? C(r).prosecution : C(r).defense).evidence; need(ev[d.i]);
       if (!(r.sel[p.role] || []).includes(d.i)) throw new Error('Vælg beviset først.');
-      if (!r.played.some(x => x.role === p.role && x.i === d.i) && r.played.filter(x => x.role === p.role).length >= MAX_EVIDENCE) throw new Error(`Du kan højst fremlægge ${MAX_EVIDENCE} beviser.`);
+      if (!r.played.some(x => x.role === p.role && x.i === d.i) && r.played.filter(x => x.role === p.role).length >= MAX_EVIDENCE) throw new Error('Du har allerede fremlagt dit bevis.');
       if (!r.played.some(x => x.role === p.role && x.i === d.i)) r.played.push({ role: p.role, i: d.i });
       else { r.played = r.played.filter(x => !(x.role === p.role && x.i === d.i)); r.played.push({ role: p.role, i: d.i }); }
-      r.fx++; break;
+      r.playSeq = (r.playSeq || 0) + 1; r.fx++; break;
     }
     case 'verdict': need(judge && BT(r).id === 'dom' && ['guilty', 'notGuilty', null].includes(d.v)); r.verdict = d.v; if (!d.v) r.revealed = false; break;
     case 'reveal': need(judge && r.verdict); r.revealed = true; break;
