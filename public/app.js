@@ -85,7 +85,7 @@
   }
 
   function homeHtml() {
-    return `<div class="brand"><div class="mark">${ICON('logo')}</div><h1>Hammerslag</h1><p>Et retsdrama for 2–4 spillere. Dommeren styrer – de andre får stikord og spiller deres rolle.</p></div>
+    return `<div class="brand hero"><h1 class="sr">Hammerslag</h1><img class="logo" src="/logo.webp" alt="Hammerslag" width="900" height="452"><p>Et retsdrama for 2–4 spillere. Dommeren styrer – de andre får stikord og spiller deres rolle.</p></div>
       ${guideCard('Ny her? Se først, hvordan man spiller')}
       <div class="ornament">${ICON('rosette')}</div>
       <div class="list">
