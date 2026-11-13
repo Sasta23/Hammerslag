@@ -167,7 +167,7 @@
     const c = s.evSteps ? { ...s.cue, title: ['', 'Vælg ét bevis', 'Fremlæg dit bevis', 'Forklar dit bevis'][evStep] } : (s.cue || {});
     const who = V.floorName ? `${esc(V.floorName)} taler` : 'Vent på dommeren';
     const box = (cls, icon, label, title) => `<div class="status ${cls}"><div class="ic">${ICON(icon)}</div><div><span class="label">${label}</span><h2>${esc(title)}</h2>${c.sub ? `<p class="ssub">${esc(c.sub)}</p>` : ''}</div></div>`;
-    if (s.mode === 'speak' && prepping(s)) return box('ready', 'hourglass', 'Din tur om lidt', `Forbered dig: ${(c.title || '').toLowerCase()}`).replace('</h2>', '</h2><p class="ssub">Læs guiden. Du taler, når dommeren starter uret.</p>');
+    if (s.mode === 'speak' && prepping(s)) { const run = V.timer && V.timer.running; return `<div class="status ready"><div class="ic">${ICON('hourglass')}</div><div><span class="label">${run ? 'Forberedelse · 30 sek.' : 'Din tur om lidt'}</span><h2>Forbered dig: ${esc((c.title || '').toLowerCase())}</h2><p class="ssub">${run ? 'Læs guiden. Når uret skifter til »Tal nu«, begynder du.' : 'Dommeren starter uret. Først får du 30 sek. til at forberede dig.'}</p></div></div>`; }
     if (s.mode === 'speak') return box('speak enter', c.icon || 'mic', '<span class="pulse"></span>Din tur – tal nu', c.title || 'Du har ordet');
     if (s.mode === 'ready') return box('ready', 'hourglass', 'Gør dig klar · snart din tur', c.title || 'Snart din tur');
     if (s.mode === 'private') return box('private', 'lock', 'Kun for dig', c.title || 'Forbered dig');
@@ -176,7 +176,8 @@
     return `<div class="status listen"><div class="ic">${ICON('ear')}</div><div><span class="label">Lyt · du skal ikke tale nu</span><h2>${esc(c.title || 'Lyt')}</h2><p class="ssub">${V.floorName ? `${esc(V.floorName)} taler. ` : ''}${esc(c.sub || 'Lyt godt efter.')}</p></div></div>`;
   }
   // Før uret starter: en lille guide til, hvad advokaten skal sige.
-  const prepping = s => !s.evSteps && V.timer && !V.timer.running && V.timer.left === V.timer.secs;
+  // Forberedelse = uret er ikke startet endnu, ELLER vi er i de første 30 sek. af en taletur.
+  const prepping = s => !s.evSteps && V.timer && ((!V.timer.running && V.timer.left === V.timer.secs) || (s.split && phase(s) === 1));
   // Taleguide: 1) sig først  2) fortæl om (med »skub«-ord)  3) slut med. Tydeligt hierarki.
   const CONNECT = ['Først …', 'Derefter …', 'Og så …', 'Og til sidst …', 'Desuden …'];
   function speechGuide(c, o = {}) {
@@ -191,8 +192,7 @@
     return `<section class="sg ${o.live ? 'live' : ''} enter"><div class="sghead">${ICON(o.live ? 'mic' : 'bulb')}<span>${esc(o.title || (o.live ? 'Tal nu – følg trinene' : 'Sådan gør du'))}</span></div>${steps.join('')}</section>`;
   }
   function prepHtml(c, label) {
-    const secs = V.timer ? V.timer.secs : null;
-    return speechGuide(c, { title: label || `Sådan gør du · ca. ${secs || 45} sek. – læs det, mens du venter` });
+    return speechGuide(c, { title: label || 'Sådan gør du – læs det, mens du forbereder dig' });
   }
   // Sagen: advokaten lytter OG vælger teori – guidet trin for trin.
   function sagenTask(s, me) {

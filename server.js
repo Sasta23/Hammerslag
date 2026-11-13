@@ -30,16 +30,16 @@ const rolesOf = r => SIZES[r.size] || ORDER;
 const BEATS = [
   { id: 'sagen', label: 'Sagen', floor: 'judge' },
   { id: 'forb', label: 'Forberedelse', floor: null, secs: 60 },
-  { id: 'aab_p', label: 'Anklagerens åbningstale', floor: 'prosecutor', secs: 45 },
-  { id: 'aab_d', label: 'Forsvarerens åbningstale', floor: 'defense', secs: 45 },
+  { id: 'aab_p', label: 'Anklagerens åbningstale', floor: 'prosecutor', secs: 90 },
+  { id: 'aab_d', label: 'Forsvarerens åbningstale', floor: 'defense', secs: 90 },
   { id: 'vidne', label: 'Vidnet fortæller', floor: 'witness', secs: 45 },
-  { id: 'fh_p', label: 'Anklageren afhører', floor: 'prosecutor', secs: 60 },
-  { id: 'fh_d', label: 'Forsvareren krydsforhører', floor: 'defense', secs: 60 },
+  { id: 'fh_p', label: 'Anklageren afhører', floor: 'prosecutor', secs: 90 },
+  { id: 'fh_d', label: 'Forsvareren krydsforhører', floor: 'defense', secs: 90 },
   { id: 'bev_p', label: 'Anklagerens beviser', floor: 'prosecutor', secs: 90 },
   { id: 'bev_d', label: 'Forsvarerens beviser', floor: 'defense', secs: 90 },
   { id: 'twist', label: 'Nyt bevis', floor: 'judge', secs: 90 },
-  { id: 'sid_p', label: 'Anklagerens sidste ord', floor: 'prosecutor', secs: 30 },
-  { id: 'sid_d', label: 'Forsvarerens sidste ord', floor: 'defense', secs: 30 },
+  { id: 'sid_p', label: 'Anklagerens sidste ord', floor: 'prosecutor', secs: 60 },
+  { id: 'sid_d', label: 'Forsvarerens sidste ord', floor: 'defense', secs: 60 },
   { id: 'dom', label: 'Dommen', floor: 'judge' }
 ];
 const OBJECTIONS = [
@@ -50,6 +50,9 @@ const OBJECTIONS = [
   { t: 'Det er irrelevant!', d: 'Det har intet med sagen at gøre' },
   { t: 'De presser vidnet!', d: 'Spørgsmålene er urimelige over for vidnet' }
 ];
+// Advokaternes taleture: først 30 sek. forberedelse, så taletid.
+const PREP = 30, TALK = { aab_p: 60, aab_d: 60, fh_p: 60, fh_d: 60, sid_p: 30, sid_d: 30 };
+const mmss = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
 const MAX_EVIDENCE = 1; // ét bevis pr. side: anklagerens = Bevis A, forsvarerens = Bevis B
 const BEV = { bev_p: 'prosecutor', bev_d: 'defense' };
 // Hvem må gøre indsigelse? Vidnet er anklagerens vidne – så forsvareren må
@@ -161,7 +164,7 @@ function judgeScreen(r) {
     case 'twist': s.now = 'Nyt bevis'; s.hint = r.size === 4 ? 'Læs det roligt højt. Giv så ordet til vidnet – og bagefter advokaterne.' : 'Læs det roligt højt. Giv så ordet til advokaterne.';
       s.script = ['Ro i retten! Der er kommet nyt i sagen.', `${T(r).reveal.title}: ${T(r).reveal.text}`, r.size === 4 ? `${w.name}, kan De fortælle retten mere om det?` : r.size === 3 ? 'Hvad siger parterne til det?' : 'Forsvarer, hvad siger De til det?'];
       ex.push({ type: 'twist', ...T(r).reveal }); break;
-    case 'sid_p': s.now = 'Anklagerens sidste ord'; s.hint = '30 sekunder. Ingen afbrydelser.'; s.script = r.size === 2 ? ['Anklagerens sidste ord. Retten læser op:', ...c.prosecution.script.closing] : 'Anklageren, De har 30 sekunder til Deres sidste ord.';
+    case 'sid_p': s.now = 'Anklagerens sidste ord'; s.hint = 'Ingen afbrydelser.'; s.script = r.size === 2 ? ['Anklagerens sidste ord. Retten læser op:', ...c.prosecution.script.closing] : 'Anklageren, De har 30 sekunder til Deres sidste ord.';
       if (r.size === 2) s.hint = 'Læs anklagerens sidste ord højt.'; break;
     case 'sid_d': s.now = 'Forsvarerens sidste ord'; s.hint = 'Forsvaret har altid det sidste ord.'; s.script = 'Forsvareren, De har ordet til sidst.'; break;
     case 'dom':
@@ -175,6 +178,7 @@ function judgeScreen(r) {
     ...c.defense.evidence.map((e, i) => ({ k: 'd' + i, side: 'defense', ...e, played: r.played.some(x => x.role === 'defense' && x.i === i) }))
   ];
   if (r.revealed) s.truth = { title: T(r).truthTitle, text: T(r).truthText, truth: T(r).truth, epilogue: T(r).epilogue[r.verdict] };
+  if (TALK[b.id]) s.timerNote = `${mmss(PREP)} forberedelse · ${mmss(TALK[b.id])} taletid`;
   return s;
 }
 
@@ -293,6 +297,7 @@ function playerScreen(r, role) {
   }
   // Dommeren kan give ordet til hvem som helst – så skifter skærmen til »din tur«.
   if (mine && s.mode === 'listen') { s.mode = 'speak'; s.cue = { ...s.cue, title: 'Dommeren giver dig ordet', sub: null, starter: s.cue && s.cue.starter || 'Ærede dommer, jeg mener …' }; }
+  if (TALK[b.id] && mine && (role === 'prosecutor' || role === 'defense')) s.split = { at: TALK[b.id], first: 'Forbered dig', second: 'Tal nu' };
   return s;
 }
 
