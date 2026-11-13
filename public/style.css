@@ -519,3 +519,7 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .explain { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: #fff7dc; border-radius: 8px; font-size: 16px; }
 .explain .i { width: 22px; height: 22px; color: #9a7a1e; flex: none; margin-top: 2px; }
 .stepper em { min-width: 12px; }
+
+.hbtns { display: flex; gap: 6px; }
+.btn.quit { width: 40px; padding: 0; color: var(--wine); border-color: var(--wine); }
+.btn.quit .i { width: 18px; height: 18px; }

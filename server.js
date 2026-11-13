@@ -442,6 +442,12 @@ http.createServer(async (req, res) => {
       const d = await body(req); const r = rooms.get(String(d.room || '').toUpperCase());
       const p = r && r.players.find(x => x.token === d.token);
       if (!p) return json(res, 403, { error: 'Ukendt spiller.' });
+      // Dommeren afslutter retssagen: alle sendes tilbage til forsiden, og rummet slettes.
+      if (d.type === 'close') {
+        if (p.role !== 'judge') return json(res, 400, { error: 'Kun dommeren kan afslutte retssagen.' });
+        for (const c of r.conns) { try { c.res.write(`data: ${JSON.stringify({ closed: true })}\n\n`); c.res.end(); } catch (e) {} }
+        r.conns.clear(); rooms.delete(r.code); return json(res, 200, { ok: true });
+      }
       act(r, p, d.type, d.data || {}); broadcast(r); return json(res, 200, { ok: true });
     }
     if (url.pathname === '/api/stream') {

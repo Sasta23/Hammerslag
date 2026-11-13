@@ -23,7 +23,15 @@
     if (es) es.close();
     store.set('rs-last', auth);
     es = new EventSource(`/api/stream?room=${auth.room}&token=${auth.token}`);
-    es.onmessage = e => { const v = JSON.parse(e.data); offset = v.serverNow - Date.now(); react(v); V = v; render(); };
+    es.onmessage = e => { const v = JSON.parse(e.data); if (v.closed) return closed(); offset = v.serverNow - Date.now(); react(v); V = v; render(); };
+  }
+  // Retssagen er afsluttet af dommeren: tilbage til forsiden for alle.
+  function closed() {
+    if (es) es.close(); es = null; store.set('rs-last', null);
+    const wasJudge = V && V.me && V.me.role === 'judge';
+    V = null; auth = null; ui = { ...ui, screen: 'home', sheet: null, err: null, html: '', foot: '' };
+    history.replaceState(null, '', location.pathname); render();
+    flash({ icon: 'logo', label: 'Retten er hævet', title: wasJudge ? 'Du har afsluttet retssagen' : 'Dommeren har afsluttet retssagen' });
   }
   async function boot() {
     const want = (params.get('r') || '').toUpperCase();
@@ -135,7 +143,8 @@
       <span class="label">Hvor mange er I?</span>${sizeHtml(V.size, 'size')}
       <span class="label">Rollerne</span>${seatsHtml(false)}
       ${guideCard('Første gang? Vis videoen for alle, før I starter', true)}
-      <button class="btn primary lg wide" data-a="start" ${filled < V.seats.length ? 'disabled' : ''}>${filled < V.seats.length ? `Venter på spillere (${filled}/${V.seats.length})` : 'Sæt retten'}</button>`;
+      <button class="btn primary lg wide" data-a="start" ${filled < V.seats.length ? 'disabled' : ''}>${filled < V.seats.length ? `Venter på spillere (${filled}/${V.seats.length})` : 'Sæt retten'}</button>
+      <button class="btn ghost wide" data-a="sheet" data-s="quit" style="color:var(--wine)">${ICON('x')} Afslut og gå til forsiden</button>`;
     if (!V.me.role) return `<div class="brand" style="padding-top:6px"><span class="label">${esc(V.case.title)}</span><h1 style="font-size:32px">Hvem vil du være?</h1><p>Hver rolle kan kun vælges af én.</p></div>${seatsHtml(true)}`;
     return `<div class="brand" style="padding-top:6px"><span class="label">${esc(V.case.title)}</span><h1 style="font-size:32px">Du er ${ROLE[V.me.role].t.toLowerCase()}</h1><p>${esc(V.me.goal)}</p></div>
       <span class="label">Rollerne</span>${seatsHtml(false)}
@@ -311,7 +320,7 @@
   /* ---------- dommeren ---------- */
   function judgeHtml() {
     const s = V.screen, n = V.beats.length;
-    let h = `<header class="top"><div class="badge">${ICON('logo')}</div><div><b>Dommer · trin ${V.beat + 1} af ${n}</b><span>${esc(V.case.title)} · kode ${esc(V.code)}</span></div><button class="btn sm" data-a="sheet" data-s="roles">Roller</button></header>
+    let h = `<header class="top"><div class="badge">${ICON('logo')}</div><div><b>Dommer · ${V.beat + 1}/${n}</b><span>${esc(V.case.title)} · kode ${esc(V.code)}</span></div><div class="hbtns"><button class="btn sm" data-a="sheet" data-s="roles">Roller</button><button class="btn sm quit" data-a="sheet" data-s="quit" aria-label="Afslut retssagen">${ICON('x')}</button></div></header>
       <nav class="steps" aria-label="Retssagens trin">${V.beats.map((b, i) => `<button class="${i < V.beat ? 'done' : i === V.beat ? 'now' : ''}" data-a="beat" data-i="${i}"><i>${i < V.beat ? '✓' : i + 1}</i>${esc(b)}</button>`).join('')}</nav>`;
     if (V.objection && V.objection.status === 'pending') h += `<div class="alert enter"><span class="label" style="color:#f3e1de">Indsigelse fra ${esc(V.objection.byTitle.toLowerCase())}en</span><h3>»${esc(V.objection.type)}«</h3>${V.objection.about ? `<p style="color:#f3e1de">Mod beviset: ${esc(V.objection.about)}</p>` : ''}
       <div class="row"><button class="btn ok" data-a="rule" data-ok="1">Taget til følge</button><button class="btn" data-a="rule" data-ok="0">Afvist</button></div></div>`;
@@ -381,7 +390,9 @@
   /* ---------- skuffer ---------- */
   function renderSheet() {
     let h = '';
-    if (ui.sheet === 'role' && V) {
+    if (ui.sheet === 'quit' && V) h = `<h2>Afslut retssagen?</h2><p>Alle spillere bliver sendt tilbage til forsiden, og retssagen slettes. Det kan ikke fortrydes.</p>
+      <button class="btn danger lg wide" data-a="close">Ja, afslut for alle</button><button class="btn wide" data-a="closeSheet">Nej, fortsæt</button>`;
+    else if (ui.sheet === 'role' && V) {
       const s = V.screen || {};
       h = `<h2>Du er ${ROLE[V.me.role].t.toLowerCase()}</h2><p>${esc(V.me.goal)}</p>
         <div class="card"><span class="label">Den tiltalte</span><p><b>${esc(V.case.accused)}</b></p></div>
@@ -390,7 +401,7 @@
     else if (ui.sheet === 'roles' && V) h = `<h2>Rollerne</h2>${seatsHtml(false)}`;
     else if (ui.sheet === 'object' && V) h = `<h2>Hvad er der galt?</h2><p class="muted">Vælg – så får dommeren besked. Råb »Indsigelse!« højt samtidig.</p>
       <div class="list">${(V.objections || []).map(o => `<button class="opt" data-a="object" data-t="${o.i}"><div class="ic">${ICON('hand')}</div><b>${esc(o.t)}</b><span>${esc(o.d)}</span><div></div></button>`).join('')}</div>`;
-    if (h) h += `<button class="btn wide" data-a="closeSheet">Luk</button>`;
+    if (h && ui.sheet !== 'quit') h += `<button class="btn wide" data-a="closeSheet">Luk</button>`;
     const key = ui.sheet + h;
     if (key === ui.sheetKey) return; ui.sheetKey = key;
     sheetEl.hidden = !h; sheetEl.className = h ? 'sheet-wrap' : '';
@@ -464,6 +475,7 @@
     const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
     const a = b.dataset.a, i = Number(b.dataset.i);
     switch (a) {
+      case 'close': ui.sheet = null; return act('close', {});
       case 'toHome': ui.screen = 'home'; ui.err = null; return render();
       case 'guide': ui.sheet = 'guide'; return render();
       case 'toJoin': ui.screen = 'join'; ui.err = null; return render();
