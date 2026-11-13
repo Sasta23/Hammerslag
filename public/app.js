@@ -85,15 +85,20 @@
   }
 
   function homeHtml() {
-    return `<div class="brand"><div class="mark">${ICON('logo')}</div><h1>Hammerslag</h1><p>Et retsdrama for fire. Dommeren styrer – de andre får stikord og spiller deres rolle.</p></div>
+    return `<div class="brand"><div class="mark">${ICON('logo')}</div><h1>Hammerslag</h1><p>Et retsdrama for 2–4 spillere. Dommeren styrer – de andre får stikord og spiller deres rolle.</p></div>
+      ${guideCard('Ny her? Se først, hvordan man spiller')}
       <div class="ornament">${ICON('rosette')}</div>
       <div class="list">
-        ${['judge', 'prosecutor', 'defense', 'witness'].map(r => `<div class="seat">${badge(r)}<div><b>${ROLE[r].t}</b><span>${{ judge: 'Styrer retssagen og afsiger dommen', prosecutor: 'Skal bevise, at den tiltalte er skyldig', defense: 'Skal skabe rimelig tvivl', witness: 'Fortæller, hvad der skete' }[r]}</span></div><div></div></div>`).join('')}
+        ${['judge', 'prosecutor', 'defense', 'witness'].map(r => `<div class="seat">${badge(r)}<div><b>${ROLE[r].t}</b><span>${{ judge: 'Styrer retssagen og afsiger dommen', prosecutor: 'Skal bevise, at den tiltalte er skyldig', defense: 'Forsvarer sin klient', witness: 'Fortæller, hvad der skete' }[r]}</span></div><div></div></div>`).join('')}
       </div>
       <button class="btn primary lg wide" data-a="toCreate">Opret retssag – jeg er dommer</button>
       <button class="btn lg wide" data-a="toJoin">Deltag med kode</button>
-      <button class="btn ghost wide" data-a="guide">${ICON('video')} Se video-guide (1 min.)</button>`;
+`;
   }
+  // Stort, tydeligt kort til introduktionsvideoen
+  const guideCard = (title, small) => `<button class="guidecard ${small ? 'small' : ''}" data-a="guide" aria-label="Afspil introduktionsvideo">
+    <div class="thumb"><img src="/guide-poster.jpg" alt=""><span class="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span><span class="dur">1:00</span></div>
+    <div class="gtxt"><span class="label">${ICON('video')}Introduktionsvideo</span><b>${esc(title)}</b></div></button>`;
   const SIZE_INFO = {
     4: ['Dommer, anklager, forsvarer og vidne', 'Vidnet bliver afhørt og krydsforhørt.'],
     3: ['Dommer, anklager og forsvarer', 'Vidnet møder ikke op – dommeren læser hendes forklaring.'],
@@ -129,11 +134,13 @@
       <div class="card" style="align-items:center;text-align:center"><span class="label">Scan for at deltage</span><div class="qr" id="qr"></div><span class="label">eller skriv koden</span><div class="codebig">${esc(V.code)}</div></div>
       <span class="label">Hvor mange er I?</span>${sizeHtml(V.size, 'size')}
       <span class="label">Rollerne</span>${seatsHtml(false)}
+      ${guideCard('Første gang? Vis videoen for alle, før I starter', true)}
       <button class="btn primary lg wide" data-a="start" ${filled < V.seats.length ? 'disabled' : ''}>${filled < V.seats.length ? `Venter på spillere (${filled}/${V.seats.length})` : 'Sæt retten'}</button>`;
     if (!V.me.role) return `<div class="brand" style="padding-top:6px"><span class="label">${esc(V.case.title)}</span><h1 style="font-size:32px">Hvem vil du være?</h1><p>Hver rolle kan kun vælges af én.</p></div>${seatsHtml(true)}`;
     return `<div class="brand" style="padding-top:6px"><span class="label">${esc(V.case.title)}</span><h1 style="font-size:32px">Du er ${ROLE[V.me.role].t.toLowerCase()}</h1><p>${esc(V.me.goal)}</p></div>
       <span class="label">Rollerne</span>${seatsHtml(false)}
-      <div class="card"><p class="muted">Venter på, at dommeren sætter retten …</p><button class="btn sm ghost" data-a="unpick">Skift rolle</button></div>`;
+      <div class="card"><p class="muted">Venter på, at dommeren sætter retten …</p><button class="btn sm ghost" data-a="unpick">Skift rolle</button></div>
+      ${guideCard('Mens I venter: se, hvordan man spiller', true)}`;
   }
 
   /* ---------- spillerne ---------- */
