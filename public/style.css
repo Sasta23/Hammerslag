@@ -551,3 +551,16 @@ h1, h2, h3, .status h2, .evtitle h2, .evphase > h2, .cue h2, .opt b, .item b, .s
 .btn.lg { font-size: 18px; }
 .wrap > .label, .sheet > .label { font-family: var(--font-body); font-size: 15px; }
 .script .label, .evcard .label, .presented > .label, .turns span { font-family: var(--font-body); font-style: normal; letter-spacing: 0; text-transform: none; font-size: 16px; font-weight: 700; }
+
+/* sætnings-bygger: Start → Midte → Slut */
+.sb { position: relative; background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px; padding: 16px 16px 16px 14px; display: flex; flex-direction: column; gap: 14px; }
+.sb.live { border: 2px solid var(--role); }
+.sbtitle { font: var(--f-body); font-weight: 700; color: var(--muted); }
+.sbrow { position: relative; display: grid; grid-template-columns: 58px 1fr; gap: 10px; align-items: start; }
+.sbrow:not(:last-child)::after { content: ''; position: absolute; left: 28px; top: 30px; bottom: -14px; width: 2px; background: var(--line); }
+.sbtag { position: relative; z-index: 1; justify-self: center; margin-top: 8px; font: var(--f-body); font-weight: 700; font-size: 14px; color: var(--role-ink); background: var(--role); border-radius: 99px; padding: 2px 9px; }
+.sbrow.mid .sbtag { background: var(--surface); color: var(--role); border: 2px solid var(--role); }
+.sbrow q { display: block; quotes: '»' '«'; font: var(--f-say); background: #fff; border: 2px solid var(--role); border-radius: 14px 14px 14px 4px; padding: 10px 14px; }
+.sbrow.mid > div { padding-top: 6px; }
+.sbhint { font: var(--f-body); color: var(--muted); margin-bottom: 4px; }
+.sbrow .keys { flex-direction: column; gap: 2px; }

@@ -167,7 +167,7 @@
     const c = s.evSteps ? { ...s.cue, title: ['', 'Vælg ét bevis', 'Fremlæg dit bevis', 'Forklar dit bevis'][evStep] } : (s.cue || {});
     const who = V.floorName ? `${esc(V.floorName)} taler` : 'Vent på dommeren';
     const box = (cls, icon, label, title) => `<div class="status ${cls}"><div class="ic">${ICON(icon)}</div><div><span class="label">${label}</span><h2>${esc(title)}</h2>${c.sub ? `<p class="ssub">${esc(c.sub)}</p>` : ''}</div></div>`;
-    if (s.mode === 'speak' && prepping(s)) { const run = V.timer && V.timer.running; return `<div class="status ready"><div class="ic">${ICON('hourglass')}</div><div><span class="label">${run ? 'Forberedelse · 30 sek.' : 'Din tur om lidt'}</span><h2>Forbered dig: ${esc((c.title || '').toLowerCase())}</h2><p class="ssub">${run ? 'Læs guiden. Når uret skifter til »Tal nu«, begynder du.' : 'Dommeren starter uret. Først får du 30 sek. til at forberede dig.'}</p></div></div>`; }
+    if (s.mode === 'speak' && prepping(s)) { const run = V.timer && V.timer.running; return `<div class="status ready"><div class="ic">${ICON('hourglass')}</div><div><span class="label">${run ? 'Forberedelse' : 'Din tur om lidt'}</span><h2>Forbered dig: ${esc((c.title || '').toLowerCase())}</h2><p class="ssub">${run ? 'Når uret skifter til »Tal nu«, begynder du.' : s.split ? 'Dommeren starter uret. Først får du 30 sek. til at forberede dig.' : 'Du taler, når dommeren starter uret.'}</p></div></div>`; }
     if (s.mode === 'speak') return box('speak enter', c.icon || 'mic', '<span class="pulse"></span>Din tur – tal nu', c.title || 'Du har ordet');
     if (s.mode === 'ready') return box('ready', 'hourglass', 'Gør dig klar · snart din tur', c.title || 'Snart din tur');
     if (s.mode === 'private') return box('private', 'lock', 'Kun for dig', c.title || 'Forbered dig');
@@ -178,21 +178,17 @@
   // Før uret starter: en lille guide til, hvad advokaten skal sige.
   // Forberedelse = uret er ikke startet endnu, ELLER vi er i de første 30 sek. af en taletur.
   const prepping = s => !s.evSteps && V.timer && ((!V.timer.running && V.timer.left === V.timer.secs) || (s.split && phase(s) === 1));
-  // Taleguide: 1) sig først  2) fortæl om (med »skub«-ord)  3) slut med. Tydeligt hierarki.
-  const CONNECT = ['Først …', 'Derefter …', 'Og så …', 'Og til sidst …', 'Desuden …'];
+  // Sætnings-byggeren: Start → Midte → Slut. Enkel, så man ikke drukner i tekst.
   function speechGuide(c, o = {}) {
     const cont = c.keys && c.keys.length && c.keys[0].startsWith('…');
-    const con = o.connectors || CONNECT;
-    const steps = [];
-    if (c.starter) steps.push(`<div class="sgstep s1"><i>1</i><div><small>Begynd med at sige</small><q>${esc(c.starter)}</q></div></div>`);
-    if (c.keys && c.keys.length) steps.push(`<div class="sgstep s2"><i>${steps.length + 1}</i><div><small>${cont ? 'Fortsæt sætningen – vælg det, der passer' : 'Fortæl så om 2–3 af disse – med dine egne ord'}</small>
-      <ul class="flow">${c.keys.map((k, n) => `<li>${cont ? '' : `<em>${esc(con[n % con.length])}</em>`}<span>${esc(k)}</span></li>`).join('')}</ul>
-      <p class="push">${ICON('bulb')}<span><b>Går du i stå?</b> Sig: »Og det betyder, at …« – og tag næste stikord.</span></p></div></div>`);
-    if (c.end) steps.push(`<div class="sgstep s3"><i>${steps.length + 1}</i><div><small>Slut af med at sige</small><q>${esc(c.end)}</q></div></div>`);
-    return `<section class="sg ${o.live ? 'live' : ''} enter"><div class="sghead">${ICON(o.live ? 'mic' : 'bulb')}<span>${esc(o.title || (o.live ? 'Tal nu – følg trinene' : 'Sådan gør du'))}</span></div>${steps.join('')}</section>`;
+    const rows = [];
+    if (c.starter) rows.push(`<div class="sbrow"><span class="sbtag">Start</span><q>${esc(c.starter)}</q></div>`);
+    if (c.keys && c.keys.length) rows.push(`<div class="sbrow mid"><span class="sbtag">Midte</span><div><p class="sbhint">${cont ? 'Fortsæt med det, der passer' : 'Sig 2–3 af disse – med dine egne ord'}</p>${keys(c.keys, 'say')}</div></div>`);
+    if (c.end) rows.push(`<div class="sbrow"><span class="sbtag">Slut</span><q>${esc(c.end)}</q></div>`);
+    return `<section class="sb ${o.live ? 'live' : ''}">${o.title ? `<p class="sbtitle">${esc(o.title)}</p>` : ''}${rows.join('')}</section>`;
   }
   function prepHtml(c, label) {
-    return speechGuide(c, { title: label || 'Sådan gør du – læs det, mens du forbereder dig' });
+    return speechGuide(c, { title: label });
   }
   // Sagen: advokaten lytter OG vælger teori – guidet trin for trin.
   function sagenTask(s, me) {
@@ -248,7 +244,7 @@
     const t = s.evTalk || { starter: c.starter, keys: shown.keys, end: c.end };
     h += `<div class="donebar">${ICON('check')}<p><b>Bevis ${esc(shown.letter)} er fremlagt.</b> Alle kan nu se det. Forklar det nu højt.</p>
       ${shown.canPlay ? `<button class="btn sm" data-a="play" data-i="${shown.i}">Vis igen</button>` : ''}</div>`;
-    h += speechGuide({ starter: t.starter, keys: t.keys, end: t.end }, { live: true, title: 'Trin 3 af 3 · Forklar beviset', connectors: ['Beviset viser, at …', 'Det betyder, at …', 'Og det passer med, at …', 'Til sidst …'] });
+    h += speechGuide({ starter: t.starter, keys: t.keys, end: t.end }, { live: true, title: 'Forklar beviset' });
     return h;
   }
   // Beviser vises som »sagsmapper« – tydeligt adskilt fra det, man skal sige.
@@ -282,7 +278,6 @@
     if (s.secret) h += `<div class="secret"><span class="label">Det kan forsvareren spørge om</span><p>${esc(s.secret)}</p></div>`;
     if (s.objection) h += `<button class="btn danger objbtn wide" data-a="sheet" data-s="object">${s.shown ? 'Indsigelse mod beviset!' : 'Indsigelse!'} <small>1 tilbage</small></button><p class="objhint">Tryk kun, hvis modparten siger noget forkert eller urimeligt.</p>`;
     else if (s.objUsed) h += `<button class="btn objbtn wide" disabled>${s.objUsed === 'bevis' ? 'Indsigelse brugt mod dette bevis' : 'Indsigelse brugt i denne tur'}</button>`;
-    if (s.next && !compact) h += prepHtml(s.next, `Bagefter er det din tur – forbered dig: ${s.next.title.toLowerCase()}`);
     return h;
   }
   function endHtml(s) {
