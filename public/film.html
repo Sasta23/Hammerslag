@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="da"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Hammerslag – filmen</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #f4efe4; font-family: "Source Sans 3", system-ui, sans-serif; }
+  .wrap { position: fixed; inset: 0; display: grid; place-items: center; }
+  video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .play { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.35); border: 0; color: #fff; cursor: pointer; }
+  .play span { width: 96px; height: 96px; border-radius: 50%; background: #7a2b2b; display: grid; place-items: center; box-shadow: 0 0 0 8px rgba(244,239,228,.8); }
+  .play svg { width: 44px; height: 44px; margin-left: 6px; }
+  .play p { position: absolute; bottom: max(28px, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; font-size: 17px; font-weight: 600; margin: 0; }
+  .play[hidden] { display: none; }
+  .game { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 14px; color: #f4efe4; background: rgba(0,0,0,.5); border: 1px solid rgba(244,239,228,.5); border-radius: 99px; padding: 8px 14px; font-size: 15px; font-weight: 600; text-decoration: none; }
+</style></head>
+<body>
+<div class="wrap">
+  <video id="v" src="/film.mp4" poster="/film-poster.jpg" playsinline preload="metadata"></video>
+  <button class="play" id="p" aria-label="Afspil filmen"><span><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span><p>Tryk for at se filmen</p></button>
+  <a class="game" href="/">Spil Hammerslag →</a>
+</div>
+<script>
+  const v = document.getElementById('v'), p = document.getElementById('p');
+  p.onclick = () => { v.controls = true; v.play(); p.hidden = true; };
+  v.onended = () => { p.hidden = false; p.querySelector('p').textContent = 'Se den igen'; };
+</script>
+</body></html>

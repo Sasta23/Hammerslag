@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="da"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hammerslag – QR-koder</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+  body { margin: 0; background: #f4efe4; color: #2b2f2a; font-family: "Source Sans 3", system-ui, sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 32px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+  .card { background: #fbf8f1; border: 2px solid #3f5446; outline: 1px solid #3f5446; outline-offset: -8px; border-radius: 4px; padding: 28px; text-align: center; }
+  h1 { font-family: "Playfair Display", serif; font-weight: 600; font-size: 28px; margin: 0 0 6px; }
+  p { margin: 0 0 16px; color: #57534a; }
+  .q svg { width: 100%; max-width: 280px; height: auto; }
+  .url { font-size: 14px; word-break: break-all; margin-top: 10px; }
+  .tip { grid-column: 1 / -1; text-align: center; color: #57534a; }
+  @media print { .tip { display: none; } body { background: #fff; } }
+</style></head>
+<body><main>
+  <div class="card"><h1>Se filmen</h1><p>Scan med kameraet</p><div class="q" id="q1"></div><div class="url" id="u1"></div></div>
+  <div class="card"><h1>Spil Hammerslag</h1><p>Scan og opret en retssag</p><div class="q" id="q2"></div><div class="url" id="u2"></div></div>
+  <p class="tip">Tip: Tryk Ctrl+P (eller ⌘+P) for at printe, eller tag et skærmbillede.</p>
+</main>
+<script src="/qrcode.js"></script>
+<script>
+  // QR-koderne laves ud fra den adresse, siden er åbnet på – så de altid peger det rigtige sted hen.
+  const make = (id, url) => { const q = qrcode(0, 'M'); q.addData(url); q.make(); document.getElementById('q' + id).innerHTML = q.createSvgTag({ cellSize: 8, margin: 2, scalable: true }); document.getElementById('u' + id).textContent = url; };
+  make(1, location.origin + '/film'); make(2, location.origin + '/');
+</script>
+</body></html>

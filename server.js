@@ -466,7 +466,8 @@ http.createServer(async (req, res) => {
       req.on('close', () => { clearInterval(ping); r.conns.delete(conn); p.conns = Math.max(0, p.conns - 1); broadcast(r); });
       return;
     }
-    const f = path.normalize(path.join(PUB, url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname)));
+    const PAGES = { '/': 'index.html', '/film': 'film.html', '/film/': 'film.html', '/qr': 'qr.html', '/qr/': 'qr.html' };
+    const f = path.normalize(path.join(PUB, PAGES[url.pathname] || decodeURIComponent(url.pathname)));
     if (!f.startsWith(PUB)) { res.writeHead(403); return res.end(); }
     // Video: understøt Range-forespørgsler (kræves af iPhone).
     if (path.extname(f) === '.mp4') return fs.stat(f, (err, st) => {
