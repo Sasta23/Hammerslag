@@ -85,10 +85,10 @@
   }
 
   function homeHtml() {
-    return `<div class="brand"><div class="mark">${ICON('logo')}</div><h1>Hammerslag</h1><p>Et retsdrama for fire. Dommeren styrer – de andre får stikord og spiller deres rolle.</p></div>
+    return `<div class="hero"><img class="logo" src="/logo.webp" alt="Hammerslaget" width="900" height="393"><p>Et retsdrama for 2–4 spillere. Dommeren styrer – de andre får stikord og spiller deres rolle.</p></div>
       <div class="ornament">${ICON('rosette')}</div>
       <div class="list">
-        ${['judge', 'prosecutor', 'defense', 'witness'].map(r => `<div class="seat">${badge(r)}<div><b>${ROLE[r].t}</b><span>${{ judge: 'Styrer retssagen og afsiger dommen', prosecutor: 'Skal bevise, at den tiltalte er skyldig', defense: 'Skal skabe rimelig tvivl', witness: 'Fortæller, hvad der skete' }[r]}</span></div><div></div></div>`).join('')}
+        ${['judge', 'prosecutor', 'defense', 'witness'].map(r => `<div class="seat">${badge(r)}<div><b>${ROLE[r].t}</b><span>${{ judge: 'Styrer retssagen og afsiger dommen', prosecutor: 'Skal bevise, at den tiltalte er skyldig', defense: 'Forsvarer sin klient', witness: 'Fortæller, hvad der skete' }[r]}</span></div><div></div></div>`).join('')}
       </div>
       <button class="btn primary lg wide" data-a="toCreate">Opret retssag – jeg er dommer</button>
       <button class="btn lg wide" data-a="toJoin">Deltag med kode</button>
